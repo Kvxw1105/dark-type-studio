@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="暗幕排版台：用于制作黑底红白字封面与视频标题页的纯前端排版工具。"
+    />
+    <title>暗幕排版台 · Dark Type Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">幕</div>
+          <div>
+            <div class="brand-name">暗幕排版台</div>
+            <div class="brand-subtitle">Dark Type Studio · 本地画布排版与高清导出</div>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="button ghost" id="undoButton" type="button" disabled>撤销</button>
+          <button class="button ghost" id="redoButton" type="button" disabled>重做</button>
+          <button class="button ghost" id="saveButton" type="button">保存到本机</button>
+          <button class="button ghost" id="loadButton" type="button">读取本机</button>
+          <button class="button primary" id="exportPngButton" type="button">导出 PNG</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="panel left-panel">
+          <section class="panel-section">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-kicker">TEMPLATES</div>
+                <h2>模板</h2>
+              </div>
+            </div>
+
+            <div class="template-grid" id="templateGrid">
+              <button class="template-card active" data-template-id="square-cover" type="button">
+                <div class="template-preview square-preview">
+                  <span class="mini-red">2026算法改版后</span>
+                  <strong>推流<br />机制</strong>
+                  <small>看懂平台如何分配流量</small>
+                </div>
+                <span class="template-meta">
+                  <b>主页方形封面</b>
+                  <small>1080 × 1080</small>
+                </span>
+              </button>
+
+              <button class="template-card" data-template-id="video-title" type="button">
+                <div class="template-preview video-preview">
+                  <span class="mini-red">2026算法改版后</span>
+                  <strong>详解推流机制</strong>
+                  <small>为什么你的内容刚发就输</small>
+                </div>
+                <span class="template-meta">
+                  <b>视频开头标题页</b>
+                  <small>1920 × 1080</small>
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-kicker">CANVAS</div>
+                <h2>画布</h2>
+              </div>
+            </div>
+
+            <label class="field-row">
+              <span>背景颜色</span>
+              <span class="color-control">
+                <input id="backgroundColor" type="color" value="#000000" />
+                <input id="backgroundHex" type="text" value="#000000" maxlength="7" />
+              </span>
+            </label>
+
+            <label class="field-row">
+              <span>导出倍率</span>
+              <select id="exportScale">
+                <option value="1">1× 原尺寸</option>
+                <option value="2">2× 高清</option>
+                <option value="4">4× 超清</option>
+              </select>
+            </label>
+
+            <div class="button-row two-columns">
+              <button class="button ghost" id="exportJpgButton" type="button">JPG</button>
+              <button class="button ghost" id="exportWebpButton" type="button">WebP</button>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-kicker">PROJECT</div>
+                <h2>项目文件</h2>
+              </div>
+            </div>
+
+            <div class="button-stack">
+              <button class="button ghost full" id="downloadProjectButton" type="button">导出项目 JSON</button>
+              <label class="button ghost full file-button">
+                导入项目 JSON
+                <input id="importProjectInput" type="file" accept="application/json,.json" />
+              </label>
+              <button class="button danger full" id="resetTemplateButton" type="button">恢复当前模板</button>
+            </div>
+          </section>
+        </aside>
+
+        <section class="stage-column">
+          <div class="stage-toolbar">
+            <div class="stage-title-block">
+              <span id="currentTemplateName">主页方形封面</span>
+              <small id="canvasSizeLabel">1080 × 1080</small>
+            </div>
+
+            <div class="zoom-control">
+              <button class="icon-button" id="zoomOutButton" type="button" aria-label="缩小">−</button>
+              <output id="zoomLabel">适应</output>
+              <button class="icon-button" id="zoomInButton" type="button" aria-label="放大">＋</button>
+              <button class="button ghost compact" id="fitButton" type="button">适应窗口</button>
+            </div>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="canvas-shell" id="canvasShell">
+              <canvas id="designCanvas" width="1080" height="1080" aria-label="设计画布"></canvas>
+            </div>
+          </div>
+
+          <div class="statusbar">
+            <span>拖动画布元素调整位置；方向键微调，Shift + 方向键移动 10 像素。</span>
+            <span id="statusMessage">已就绪</span>
+          </div>
+        </section>
+
+        <aside class="panel right-panel">
+          <section class="panel-section layers-section">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-kicker">LAYERS</div>
+                <h2>图层</h2>
+              </div>
+              <button class="icon-button plus-button" id="addTextButton" type="button" aria-label="新增文字">＋</button>
+            </div>
+
+            <div class="layer-list" id="layerList"></div>
+
+            <div class="button-row three-columns">
+              <button class="button ghost compact" id="duplicateLayerButton" type="button">复制</button>
+              <button class="button ghost compact" id="moveUpButton" type="button">上移</button>
+              <button class="button danger compact" id="deleteLayerButton" type="button">删除</button>
+            </div>
+          </section>
+
+          <section class="panel-section editor-section" id="editorSection">
+            <div class="section-heading-row">
+              <div>
+                <div class="section-kicker">PROPERTIES</div>
+                <h2>属性</h2>
+              </div>
+            </div>
+
+            <div id="emptyEditor" class="empty-state">请选择一个图层开始编辑。</div>
+
+            <form id="layerEditor" class="layer-editor hidden" autocomplete="off">
+              <label class="field-block textual-only">
+                <span>文字内容</span>
+                <textarea id="layerText" rows="3"></textarea>
+              </label>
+
+              <div class="field-grid two-columns textual-only">
+                <label class="field-block">
+                  <span>字体</span>
+                  <select id="fontFamily"></select>
+                </label>
+                <label class="field-block">
+                  <span>字重</span>
+                  <select id="fontWeight">
+                    <option value="400">常规 400</option>
+                    <option value="500">中等 500</option>
+                    <option value="600">半粗 600</option>
+                    <option value="700">粗体 700</option>
+                    <option value="800">特粗 800</option>
+                    <option value="900">极粗 900</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="button ghost full file-button textual-only">
+                上传本地字体
+                <input id="fontUploadInput" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2" />
+              </label>
+              <p class="field-note textual-only">字体仅在当前浏览器会话中加载；项目文件会记录字体名称。</p>
+
+              <div class="field-grid two-columns">
+                <label class="field-block">
+                  <span>X 坐标</span>
+                  <input id="layerX" type="number" step="1" />
+                </label>
+                <label class="field-block">
+                  <span>Y 坐标</span>
+                  <input id="layerY" type="number" step="1" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns text-only">
+                <label class="field-block">
+                  <span>字号</span>
+                  <input id="fontSize" type="number" min="8" max="1200" step="1" />
+                </label>
+                <label class="field-block">
+                  <span>最大宽度</span>
+                  <input id="maxWidth" type="number" min="20" max="4000" step="1" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns text-only">
+                <label class="field-block">
+                  <span>字间距</span>
+                  <input id="letterSpacing" type="number" min="-30" max="100" step="1" />
+                </label>
+                <label class="field-block">
+                  <span>行高</span>
+                  <input id="lineHeight" type="number" min="0.5" max="3" step="0.05" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns">
+                <label class="field-block text-only">
+                  <span>对齐</span>
+                  <select id="textAlign">
+                    <option value="left">左对齐</option>
+                    <option value="center">居中</option>
+                    <option value="right">右对齐</option>
+                  </select>
+                </label>
+                <label class="field-block">
+                  <span>颜色</span>
+                  <input id="layerColor" type="color" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns line-only">
+                <label class="field-block">
+                  <span>线条宽度</span>
+                  <input id="lineWidth" type="number" min="1" max="4000" step="1" />
+                </label>
+                <label class="field-block">
+                  <span>线条粗细</span>
+                  <input id="lineThickness" type="number" min="1" max="100" step="1" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns seal-only">
+                <label class="field-block">
+                  <span>印章直径</span>
+                  <input id="sealSize" type="number" min="20" max="600" step="1" />
+                </label>
+                <label class="field-block">
+                  <span>印章字号</span>
+                  <input id="sealFontSize" type="number" min="8" max="400" step="1" />
+                </label>
+              </div>
+
+              <label class="field-block seal-only">
+                <span>印章底色</span>
+                <input id="sealBackground" type="color" />
+              </label>
+
+              <div class="field-grid two-columns text-only">
+                <label class="field-block">
+                  <span>描边颜色</span>
+                  <input id="strokeColor" type="color" />
+                </label>
+                <label class="field-block">
+                  <span>描边宽度</span>
+                  <input id="strokeWidth" type="number" min="0" max="30" step="0.5" />
+                </label>
+              </div>
+
+              <div class="field-grid two-columns text-only">
+                <label class="field-block">
+                  <span>阴影颜色</span>
+                  <input id="shadowColor" type="color" />
+                </label>
+                <label class="field-block">
+                  <span>阴影模糊</span>
+                  <input id="shadowBlur" type="number" min="0" max="100" step="1" />
+                </label>
+              </div>
+
+              <label class="field-block">
+                <span>透明度 <output id="opacityLabel">100%</output></span>
+                <input id="layerOpacity" type="range" min="0" max="1" step="0.01" />
+              </label>
+
+              <div class="button-row two-columns">
+                <button class="button ghost" id="centerHorizontalButton" type="button">水平居中</button>
+                <button class="button ghost" id="centerVerticalButton" type="button">垂直居中</button>
+              </div>
+            </form>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "dark-type-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "黑底红白字封面与视频标题页的纯前端排版工具",
+  "scripts": {
+    "serve": "python -m http.server 4173",
+    "test": "node --check app.js && node scripts/smoke-test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
