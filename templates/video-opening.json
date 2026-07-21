@@ -1,0 +1,8 @@
+{
+  "name":"视频开场标题页",
+  "size":{"width":1920,"height":1080},
+  "layers":[
+    {"id":"headline","type":"text","role":"title","text":"详解推流机制","fontSize":120,"x":960,"y":430},
+    {"id":"desc","type":"text","role":"subtitle","text":"完整逻辑拆解","fontSize":40,"x":960,"y":650}
+  ]
+}
