@@ -1,0 +1,9 @@
+{
+  "name":"黑底大字封面",
+  "size":{"width":1080,"height":1080},
+  "layers":[
+    {"id":"title","type":"text","role":"title","text":"推流\n机制","fontSize":160,"x":540,"y":430},
+    {"id":"subtitle","type":"text","role":"subtitle","text":"看懂平台如何分配流量","fontSize":32,"x":540,"y":700},
+    {"id":"seal","type":"stamp","text":"密","x":540,"y":820}
+  ]
+}
