@@ -1,0 +1,9 @@
+{
+  "name": "dark-type-studio",
+  "version": "0.2.2",
+  "private": true,
+  "scripts": {
+    "test": "node --check core.js && node --check canvas.js && node --check editor.js && node --check interaction.js && node --check storage.js && node scripts/smoke-test.mjs"
+  },
+  "engines": {"node": ">=20"}
+}
