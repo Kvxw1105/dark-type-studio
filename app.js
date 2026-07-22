@@ -1,8 +1,9 @@
 "use strict";
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.1.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const MAX_HISTORY = 60;
+const SNAP_DISTANCE_PX = 10;
 
 const FONT_OPTIONS = [
   { name: "宋体标题", value: '"STSong", "Songti SC", "SimSun", serif' },
@@ -265,6 +266,7 @@ const elements = {
   backgroundColor: document.querySelector("#backgroundColor"),
   backgroundHex: document.querySelector("#backgroundHex"),
   exportScale: document.querySelector("#exportScale"),
+  canvasPreset: document.querySelector("#canvasPreset"),
   layerList: document.querySelector("#layerList"),
   emptyEditor: document.querySelector("#emptyEditor"),
   layerEditor: document.querySelector("#layerEditor"),
@@ -312,6 +314,7 @@ let history = [];
 let historyIndex = -1;
 let suppressHistory = false;
 let customFonts = [...FONT_OPTIONS];
+let alignmentGuides = { vertical: false, horizontal: false };
 
 init();
 
@@ -402,6 +405,11 @@ function bindEvents() {
   document.querySelectorAll("[data-mobile-view]").forEach((button) => {
     button.addEventListener("click", () => setMobileView(button.dataset.mobileView));
   });
+
+  elements.canvasPreset.addEventListener("change", () => {
+    const [width, height] = elements.canvasPreset.value.split("x").map(Number);
+    applyCanvasSize(width, height);
+  });
 }
 
 function restoreSavedProject() {
@@ -460,6 +468,38 @@ function resizeCanvas() {
   elements.canvasSizeLabel.textContent = `${state.width} × ${state.height}`;
   elements.backgroundColor.value = state.background;
   elements.backgroundHex.value = state.background;
+  const presetValue = `${state.width}x${state.height}`;
+  if ([...elements.canvasPreset.options].some((option) => option.value === presetValue)) {
+    elements.canvasPreset.value = presetValue;
+  }
+}
+
+function applyCanvasSize(width, height) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+  if (width === state.width && height === state.height) return;
+  const scaleX = width / state.width;
+  const scaleY = height / state.height;
+  const sizeScale = scaleX;
+  for (const layer of state.layers) {
+    layer.x *= scaleX;
+    layer.y *= scaleY;
+    if (layer.fontSize) layer.fontSize *= sizeScale;
+    if (layer.maxWidth) layer.maxWidth *= scaleX;
+    if (layer.size) layer.size *= sizeScale;
+    if (layer.width) layer.width *= scaleX;
+    if (layer.thickness) layer.thickness *= sizeScale;
+    if (layer.strokeWidth) layer.strokeWidth *= sizeScale;
+    if (layer.shadowBlur) layer.shadowBlur *= sizeScale;
+  }
+  state.width = width;
+  state.height = height;
+  touchState();
+  resizeCanvas();
+  commitHistory();
+  renderAll();
+  zoomMode = "fit";
+  requestAnimationFrame(fitCanvasToStage);
+  showToast(`画布已调整为 ${width} × ${height}`);
 }
 
 function renderAll() {
@@ -493,6 +533,8 @@ function drawCanvas(targetContext = context, scale = 1, showSelection = true) {
     if (selectedBox) drawSelection(ctx, selectedBox);
   }
 
+  if (showSelection) drawAlignmentGuides(ctx);
+
   ctx.restore();
 }
 
@@ -513,6 +555,28 @@ function drawLayer(ctx, layer) {
 
   ctx.restore();
   return radians && box ? rotatedBounds(box, layer.x, layer.y, radians) : box;
+}
+
+function drawAlignmentGuides(ctx) {
+  if (!alignmentGuides.vertical && !alignmentGuides.horizontal) return;
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#ff3344";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 8]);
+  if (alignmentGuides.vertical) {
+    ctx.beginPath();
+    ctx.moveTo(state.width / 2, 0);
+    ctx.lineTo(state.width / 2, state.height);
+    ctx.stroke();
+  }
+  if (alignmentGuides.horizontal) {
+    ctx.beginPath();
+    ctx.moveTo(0, state.height / 2);
+    ctx.lineTo(state.width, state.height / 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function rotatedBounds(box, originX, originY, radians) {
@@ -943,6 +1007,10 @@ function handlePointerDown(event) {
     startY: point.y,
     layerX: layer.x,
     layerY: layer.y,
+    centerOffsetX: target.x + target.width / 2 - layer.x,
+    centerOffsetY: target.y + target.height / 2 - layer.y,
+    snappedX: false,
+    snappedY: false,
     moved: false,
   };
   elements.canvas.setPointerCapture?.(event.pointerId);
@@ -958,8 +1026,25 @@ function handlePointerMove(event) {
   const point = pointerToCanvas(event);
   const dx = point.x - dragState.startX;
   const dy = point.y - dragState.startY;
-  layer.x = Math.round(dragState.layerX + dx);
-  layer.y = Math.round(dragState.layerY + dy);
+  let nextX = dragState.layerX + dx;
+  let nextY = dragState.layerY + dy;
+  const threshold = SNAP_DISTANCE_PX / Math.max(customZoom, 0.1);
+  const visualCenterX = nextX + dragState.centerOffsetX;
+  const visualCenterY = nextY + dragState.centerOffsetY;
+  const snapX = Math.abs(visualCenterX - state.width / 2) <= threshold;
+  const snapY = Math.abs(visualCenterY - state.height / 2) <= threshold;
+  if (snapX) nextX = state.width / 2 - dragState.centerOffsetX;
+  if (snapY) nextY = state.height / 2 - dragState.centerOffsetY;
+  if ((snapX && !dragState.snappedX) || (snapY && !dragState.snappedY)) {
+    navigator.vibrate?.(8);
+  }
+  dragState.snappedX = snapX;
+  dragState.snappedY = snapY;
+  alignmentGuides = { vertical: snapX, horizontal: snapY };
+  elements.canvas.dataset.guideX = String(snapX);
+  elements.canvas.dataset.guideY = String(snapY);
+  layer.x = Math.round(nextX);
+  layer.y = Math.round(nextY);
   dragState.moved = dragState.moved || Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
   touchState();
   drawCanvas();
@@ -972,6 +1057,9 @@ function handlePointerUp(event) {
   elements.canvas.classList.remove("dragging");
   if (dragState.moved) commitHistory();
   dragState = null;
+  alignmentGuides = { vertical: false, horizontal: false };
+  delete elements.canvas.dataset.guideX;
+  delete elements.canvas.dataset.guideY;
   renderAll();
 }
 

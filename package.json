@@ -1,6 +1,6 @@
 {
   "name": "dark-type-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "黑底红白字封面与视频标题页的纯前端排版工具",
   "scripts": {
