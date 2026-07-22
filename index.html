@@ -10,7 +10,7 @@
     <title>暗幕排版台 · Dark Type Studio</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
+  <body data-mobile-view="canvas">
     <div class="app-shell">
       <header class="topbar">
         <div class="brand-block">
@@ -134,7 +134,7 @@
 
           <div class="stage" id="stage">
             <div class="canvas-shell" id="canvasShell">
-              <canvas id="designCanvas" width="1080" height="1080" aria-label="设计画布"></canvas>
+              <canvas id="designCanvas" width="1080" height="1080" tabindex="0" aria-label="设计画布"></canvas>
             </div>
           </div>
 
@@ -213,6 +213,11 @@
                   <input id="layerY" type="number" step="1" />
                 </label>
               </div>
+
+              <label class="field-block">
+                <span>旋转角度</span>
+                <input id="layerRotation" type="number" min="-360" max="360" step="1" />
+              </label>
 
               <div class="field-grid two-columns text-only">
                 <label class="field-block">
@@ -313,6 +318,12 @@
           </section>
         </aside>
       </main>
+
+      <nav class="mobile-tabs" aria-label="移动端工作区">
+        <button class="mobile-tab" data-mobile-view="templates" type="button">模板</button>
+        <button class="mobile-tab active" data-mobile-view="canvas" type="button">画布</button>
+        <button class="mobile-tab" data-mobile-view="properties" type="button">图层·属性</button>
+      </nav>
     </div>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

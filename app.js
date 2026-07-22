@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "1.0.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const MAX_HISTORY = 60;
 
@@ -32,7 +32,7 @@ const TEMPLATE_DEFINITIONS = {
         name: "顶部红字",
         text: "2026算法改版后",
         x: 540,
-        y: 54,
+        y: 90,
         maxWidth: 920,
         fontSize: 78,
         fontFamily: FONT_OPTIONS[1].value,
@@ -97,7 +97,7 @@ const TEMPLATE_DEFINITIONS = {
         name: "顶部红字",
         text: "2026算法改版后",
         x: 960,
-        y: 100,
+        y: 138,
         maxWidth: 1540,
         fontSize: 126,
         fontFamily: FONT_OPTIONS[1].value,
@@ -204,6 +204,8 @@ function baseLayer(overrides = {}) {
     y: 100,
     opacity: 1,
     visible: true,
+    locked: false,
+    rotation: 0,
     ...overrides,
   };
 }
@@ -272,6 +274,7 @@ const elements = {
   fontUploadInput: document.querySelector("#fontUploadInput"),
   layerX: document.querySelector("#layerX"),
   layerY: document.querySelector("#layerY"),
+  layerRotation: document.querySelector("#layerRotation"),
   fontSize: document.querySelector("#fontSize"),
   maxWidth: document.querySelector("#maxWidth"),
   letterSpacing: document.querySelector("#letterSpacing"),
@@ -315,6 +318,7 @@ init();
 function init() {
   populateFontOptions();
   bindEvents();
+  restoreSavedProject();
   commitHistory();
   resizeCanvas();
   renderAll();
@@ -395,6 +399,33 @@ function bindEvents() {
     if (zoomMode === "fit") fitCanvasToStage();
   });
   window.addEventListener("keydown", handleKeyboard);
+  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+    button.addEventListener("click", () => setMobileView(button.dataset.mobileView));
+  });
+}
+
+function restoreSavedProject() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const project = JSON.parse(raw);
+    validateProject(project);
+    state = structuredClone(project);
+    selectedLayerId = state.layers[0]?.id ?? null;
+  } catch (error) {
+    console.warn("Unable to restore saved project", error);
+    showToast("本机项目无法自动恢复，已使用默认模板。", true);
+  }
+}
+
+function setMobileView(view) {
+  document.body.dataset.mobileView = view;
+  document.querySelectorAll("[data-mobile-view]").forEach((button) => {
+    const active = button.dataset.mobileView === view;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-current", active ? "page" : "false");
+  });
+  if (view === "canvas") requestAnimationFrame(fitCanvasToStage);
 }
 
 function switchTemplate(templateId) {
@@ -468,6 +499,12 @@ function drawCanvas(targetContext = context, scale = 1, showSelection = true) {
 function drawLayer(ctx, layer) {
   ctx.save();
   ctx.globalAlpha = clamp(layer.opacity ?? 1, 0, 1);
+  const radians = ((layer.rotation ?? 0) * Math.PI) / 180;
+  if (radians) {
+    ctx.translate(layer.x, layer.y);
+    ctx.rotate(radians);
+    ctx.translate(-layer.x, -layer.y);
+  }
 
   let box = null;
   if (layer.type === "text") box = drawTextLayer(ctx, layer);
@@ -475,7 +512,26 @@ function drawLayer(ctx, layer) {
   if (layer.type === "line") box = drawLineLayer(ctx, layer);
 
   ctx.restore();
-  return box;
+  return radians && box ? rotatedBounds(box, layer.x, layer.y, radians) : box;
+}
+
+function rotatedBounds(box, originX, originY, radians) {
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const points = [
+    [box.x, box.y], [box.x + box.width, box.y],
+    [box.x, box.y + box.height], [box.x + box.width, box.y + box.height],
+  ].map(([x, y]) => ({
+    x: originX + (x - originX) * cosine - (y - originY) * sine,
+    y: originY + (x - originX) * sine + (y - originY) * cosine,
+  }));
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    x: Math.min(...xs), y: Math.min(...ys),
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
 }
 
 function drawTextLayer(ctx, layer) {
@@ -640,7 +696,10 @@ function renderLayerList() {
         <div class="layer-name">${escapeHtml(layer.name)}</div>
         <div class="layer-subtitle">${escapeHtml(layerPreview(layer))}</div>
       </span>
-      <button class="visibility-button${layer.visible ? "" : " hidden-layer"}" data-action="visibility" type="button" aria-label="切换可见性">${layer.visible ? "●" : "○"}</button>
+      <span class="layer-actions">
+        <button class="layer-action-button${layer.locked ? " active" : ""}" data-action="lock" type="button" aria-label="${layer.locked ? "解锁图层" : "锁定图层"}" title="${layer.locked ? "解锁" : "锁定"}">${layer.locked ? "锁" : "开"}</button>
+        <button class="layer-action-button${layer.visible ? "" : " hidden-layer"}" data-action="visibility" type="button" aria-label="切换可见性" title="显示/隐藏">${layer.visible ? "●" : "○"}</button>
+      </span>
     `;
     elements.layerList.appendChild(item);
   });
@@ -666,6 +725,7 @@ function renderEditor() {
 
   elements.layerX.value = Math.round(layer.x);
   elements.layerY.value = Math.round(layer.y);
+  elements.layerRotation.value = layer.rotation ?? 0;
   elements.layerOpacity.value = layer.opacity ?? 1;
   elements.opacityLabel.textContent = `${Math.round((layer.opacity ?? 1) * 100)}%`;
 
@@ -723,6 +783,15 @@ function handleLayerListClick(event) {
     return;
   }
 
+  if (event.target.closest('[data-action="lock"]')) {
+    layer.locked = !layer.locked;
+    touchState();
+    commitHistory();
+    renderAll();
+    showToast(layer.locked ? "图层已锁定" : "图层已解锁");
+    return;
+  }
+
   selectedLayerId = layer.id;
   renderAll();
 }
@@ -739,6 +808,7 @@ function handleEditorInput(event) {
     fontWeight: () => (layer.fontWeight = Number(value)),
     layerX: () => (layer.x = Number(value)),
     layerY: () => (layer.y = Number(value)),
+    layerRotation: () => (layer.rotation = Number(value)),
     fontSize: () => (layer.fontSize = Number(value)),
     maxWidth: () => (layer.maxWidth = Number(value)),
     letterSpacing: () => (layer.letterSpacing = Number(value)),
@@ -861,6 +931,12 @@ function handlePointerDown(event) {
 
   selectedLayerId = target.layerId;
   const layer = getSelectedLayer();
+  if (layer.locked) {
+    dragState = null;
+    renderAll();
+    showToast("图层已锁定，请先解锁");
+    return;
+  }
   dragState = {
     pointerId: event.pointerId,
     startX: point.x,
@@ -878,6 +954,7 @@ function handlePointerMove(event) {
   if (!dragState || event.pointerId !== dragState.pointerId) return;
   const layer = getSelectedLayer();
   if (!layer) return;
+  if (layer.locked) return;
   const point = pointerToCanvas(event);
   const dx = point.x - dragState.startX;
   const dy = point.y - dragState.startY;
@@ -927,6 +1004,7 @@ function handleKeyboard(event) {
 
   const layer = getSelectedLayer();
   if (!layer) return;
+  if (layer.locked) return;
   const amount = event.shiftKey ? 10 : 1;
   const movements = {
     ArrowLeft: [-amount, 0],
@@ -1003,22 +1081,22 @@ function saveToLocalStorage() {
     elements.statusMessage.textContent = "已保存到本机";
     showToast("项目已保存到当前浏览器。", false);
   } catch (error) {
-    console.error(error);
+    console.warn("Unable to save project", error);
     showToast("保存失败，浏览器存储空间可能不足。", true);
   }
 }
 
 function loadFromLocalStorage() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    showToast("本机还没有已保存的项目。", true);
-    return;
-  }
   try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      showToast("本机还没有已保存的项目。", true);
+      return;
+    }
     applyProject(JSON.parse(raw));
     showToast("已读取本机项目。", false);
   } catch (error) {
-    console.error(error);
+    console.warn("Unable to load project", error);
     showToast("项目数据损坏，无法读取。", true);
   }
 }
@@ -1039,7 +1117,7 @@ async function importProject(event) {
     applyProject(project);
     showToast("项目已导入。", false);
   } catch (error) {
-    console.error(error);
+    console.warn("Unable to import project", error);
     showToast("导入失败：请确认文件是有效的项目 JSON。", true);
   }
 }
@@ -1083,7 +1161,7 @@ async function loadCustomFont(event) {
     renderAll();
     showToast(`字体「${file.name}」已加载。`, false);
   } catch (error) {
-    console.error(error);
+    console.warn("Unable to load custom font", error);
     showToast("字体加载失败，请尝试 TTF、OTF、WOFF 或 WOFF2 文件。", true);
   }
 }
