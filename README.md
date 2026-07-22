@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-`v0.1.0`
+`v1.0.0`
 
 当前内置两套模板：
 
@@ -44,13 +44,7 @@ http://localhost:4173
 
 ## GitHub Pages
 
-仓库创建后，在 GitHub 的 `Settings → Pages` 中选择：
-
-- Source：Deploy from a branch
-- Branch：main
-- Folder：/ (root)
-
-保存后即可获得线上地址。
+推送 `main` 后，GitHub Actions 会运行检查并将精简的静态文件部署到 GitHub Pages。
 
 ## 使用提示
 

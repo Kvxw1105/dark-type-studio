@@ -6,6 +6,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
+const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
 
 const failures = [];
 const assert = (condition, message) => {
@@ -31,6 +33,17 @@ assert(js.includes('exportImage("image/jpeg"'), "缺少 JPG 导出");
 assert(js.includes('exportImage("image/webp"'), "缺少 WebP 导出");
 assert(js.includes("new FontFace"), "缺少本地字体加载能力");
 assert(css.includes(".workspace"), "缺少工作区布局样式");
+assert(pkg.version === "1.0.0", "package.json 版本应为 1.0.0");
+assert(js.includes('APP_VERSION = "1.0.0"'), "app.js 版本与 package.json 不一致");
+assert(html.includes('id="layerRotation"'), "缺少图层旋转控件");
+assert(html.includes('data-mobile-view="canvas"'), "缺少移动端工作区切换");
+assert(fs.existsSync(workflowPath), "缺少 GitHub Pages 工作流");
+if (fs.existsSync(workflowPath)) {
+  const workflow = fs.readFileSync(workflowPath, "utf8");
+  for (const required of ["actions/checkout@", "npm test", "actions/configure-pages@", "actions/upload-pages-artifact@", "actions/deploy-pages@"]) {
+    assert(workflow.includes(required), `Pages 工作流缺少 ${required}`);
+  }
+}
 
 if (failures.length) {
   console.error("Smoke test failed:");
