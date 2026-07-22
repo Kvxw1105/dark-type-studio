@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const MAX_HISTORY = 60;
 const SNAP_DISTANCE_PX = 10;
@@ -630,24 +630,39 @@ function drawTextLayer(ctx, layer) {
 }
 
 function drawSealLayer(ctx, layer) {
-  const radius = layer.size / 2;
+  const text = String(layer.text ?? "").replace(/\s+/g, " ").trim() || " ";
+  ctx.font = `${layer.fontWeight} ${layer.fontSize}px ${layer.fontFamily}`;
+  const height = Math.max(layer.size, layer.fontSize * 1.35);
+  const textWidth = ctx.measureText(text).width;
+  const width = Math.max(height, textWidth + layer.fontSize * 0.72);
+  const left = layer.x - width / 2;
+  const top = layer.y - height / 2;
   ctx.fillStyle = layer.background;
   ctx.beginPath();
-  ctx.arc(layer.x, layer.y, radius, 0, Math.PI * 2);
+  roundedRectPath(ctx, left, top, width, height, height / 2);
   ctx.fill();
 
-  ctx.font = `${layer.fontWeight} ${layer.fontSize}px ${layer.fontFamily}`;
   ctx.fillStyle = layer.color;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(layer.text, layer.x, layer.y + layer.fontSize * 0.03);
+  ctx.fillText(text, layer.x, layer.y + layer.fontSize * 0.03);
 
   return {
-    x: layer.x - radius - 8,
-    y: layer.y - radius - 8,
-    width: layer.size + 16,
-    height: layer.size + 16,
+    x: left - 8,
+    y: top - 8,
+    width: width + 16,
+    height: height + 16,
   };
+}
+
+function roundedRectPath(ctx, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.moveTo(x + safeRadius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, safeRadius);
+  ctx.arcTo(x + width, y + height, x, y + height, safeRadius);
+  ctx.arcTo(x, y + height, x, y, safeRadius);
+  ctx.arcTo(x, y, x + width, y, safeRadius);
+  ctx.closePath();
 }
 
 function drawLineLayer(ctx, layer) {
