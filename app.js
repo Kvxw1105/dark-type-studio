@@ -1,7 +1,8 @@
 "use strict";
 
-const APP_VERSION = "1.1.1";
+const APP_VERSION = "1.2.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
+const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const MAX_HISTORY = 60;
 const SNAP_DISTANCE_PX = 10;
 
@@ -261,6 +262,8 @@ const elements = {
   canvasShell: document.querySelector("#canvasShell"),
   stage: document.querySelector("#stage"),
   templateGrid: document.querySelector("#templateGrid"),
+  customTemplatesSection: document.querySelector("#customTemplatesSection"),
+  customTemplateList: document.querySelector("#customTemplateList"),
   currentTemplateName: document.querySelector("#currentTemplateName"),
   canvasSizeLabel: document.querySelector("#canvasSizeLabel"),
   backgroundColor: document.querySelector("#backgroundColor"),
@@ -315,12 +318,14 @@ let historyIndex = -1;
 let suppressHistory = false;
 let customFonts = [...FONT_OPTIONS];
 let alignmentGuides = { vertical: false, horizontal: false };
+let customTemplates = [];
 
 init();
 
 function init() {
   populateFontOptions();
   bindEvents();
+  loadCustomTemplates();
   restoreSavedProject();
   commitHistory();
   resizeCanvas();
@@ -373,6 +378,7 @@ function bindEvents() {
   document.querySelector("#saveButton").addEventListener("click", saveToLocalStorage);
   document.querySelector("#loadButton").addEventListener("click", loadFromLocalStorage);
   document.querySelector("#downloadProjectButton").addEventListener("click", downloadProject);
+  document.querySelector("#saveTemplateButton").addEventListener("click", saveAsCustomTemplate);
   document.querySelector("#importProjectInput").addEventListener("change", importProject);
   document.querySelector("#resetTemplateButton").addEventListener("click", resetCurrentTemplate);
 
@@ -405,11 +411,125 @@ function bindEvents() {
   document.querySelectorAll("[data-mobile-view]").forEach((button) => {
     button.addEventListener("click", () => setMobileView(button.dataset.mobileView));
   });
+  elements.customTemplateList.addEventListener("click", handleCustomTemplateClick);
 
   elements.canvasPreset.addEventListener("change", () => {
     const [width, height] = elements.canvasPreset.value.split("x").map(Number);
     applyCanvasSize(width, height);
   });
+}
+
+function loadCustomTemplates() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_TEMPLATES_KEY);
+    customTemplates = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(customTemplates)) customTemplates = [];
+  } catch (error) {
+    console.warn("Unable to load custom templates", error);
+    customTemplates = [];
+    showToast("我的模板无法读取，已忽略损坏数据。", true);
+  }
+  renderCustomTemplates();
+}
+
+function saveAsCustomTemplate() {
+  const suggestedName = `${state.name.replace(/\s+副本$/, "")} 副本`;
+  const name = window.prompt("为这个模板命名", suggestedName)?.trim();
+  if (!name) return;
+  const id = `custom-${crypto.randomUUID()}`;
+  const project = structuredClone(state);
+  project.templateId = id;
+  project.name = name;
+  project.version = APP_VERSION;
+  project.updatedAt = new Date().toISOString();
+  const template = { id, name, width: project.width, height: project.height, savedAt: project.updatedAt, project };
+  try {
+    customTemplates.unshift(template);
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customTemplates));
+    state = structuredClone(project);
+    selectedLayerId = state.layers[0]?.id ?? null;
+    commitHistory();
+    resizeCanvas();
+    renderCustomTemplates();
+    renderAll();
+    showToast(`模板「${name}」已保存到本机。`);
+  } catch (error) {
+    customTemplates = customTemplates.filter((entry) => entry.id !== id);
+    console.warn("Unable to save custom template", error);
+    showToast("模板保存失败，浏览器存储空间可能不足。", true);
+  }
+}
+
+function handleCustomTemplateClick(event) {
+  const deleteButton = event.target.closest("[data-delete-custom-template]");
+  if (deleteButton) {
+    deleteCustomTemplate(deleteButton.dataset.deleteCustomTemplate);
+    return;
+  }
+  const button = event.target.closest("[data-custom-template-id]");
+  if (!button) return;
+  const template = customTemplates.find((entry) => entry.id === button.dataset.customTemplateId);
+  if (!template) return;
+  applyProject(template.project);
+  showToast(`已应用模板「${template.name}」。`);
+}
+
+function deleteCustomTemplate(id) {
+  const template = customTemplates.find((entry) => entry.id === id);
+  if (!template || !window.confirm(`删除模板「${template.name}」吗？`)) return;
+  try {
+    customTemplates = customTemplates.filter((entry) => entry.id !== id);
+    localStorage.setItem(CUSTOM_TEMPLATES_KEY, JSON.stringify(customTemplates));
+    if (state.templateId === id) state.templateId = null;
+    renderCustomTemplates();
+    showToast("模板已删除。");
+  } catch (error) {
+    console.warn("Unable to delete custom template", error);
+    showToast("模板删除失败。", true);
+  }
+}
+
+function renderCustomTemplates() {
+  elements.customTemplateList.textContent = "";
+  elements.customTemplatesSection.classList.toggle("hidden", customTemplates.length === 0);
+  for (const template of customTemplates) {
+    const item = document.createElement("div");
+    item.className = "custom-template-item";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "custom-template-button";
+    button.dataset.customTemplateId = template.id;
+    const ratio = document.createElement("span");
+    ratio.className = "custom-template-ratio";
+    ratio.textContent = formatRatio(template.width, template.height);
+    const meta = document.createElement("span");
+    meta.className = "custom-template-meta";
+    const name = document.createElement("b");
+    name.textContent = template.name;
+    const size = document.createElement("small");
+    size.textContent = `${template.width} × ${template.height}`;
+    meta.append(name, size);
+    button.append(ratio, meta);
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "custom-template-delete";
+    deleteButton.dataset.deleteCustomTemplate = template.id;
+    deleteButton.setAttribute("aria-label", `删除模板 ${template.name}`);
+    deleteButton.title = "删除模板";
+    deleteButton.textContent = "×";
+    item.append(button, deleteButton);
+    elements.customTemplateList.appendChild(item);
+  }
+  updateTemplateCards();
+}
+
+function formatRatio(width, height) {
+  const divisor = greatestCommonDivisor(Math.round(width), Math.round(height));
+  return `${Math.round(width / divisor)}:${Math.round(height / divisor)}`;
+}
+
+function greatestCommonDivisor(a, b) {
+  return b ? greatestCommonDivisor(b, a % b) : a;
 }
 
 function restoreSavedProject() {
@@ -449,9 +569,14 @@ function switchTemplate(templateId) {
 }
 
 function resetCurrentTemplate() {
+  const customTemplate = customTemplates.find((entry) => entry.id === state.templateId);
+  if (!customTemplate && !TEMPLATE_DEFINITIONS[state.templateId]) {
+    showToast("当前模板已删除，无法恢复默认值。", true);
+    return;
+  }
   const accepted = window.confirm("确定恢复当前模板吗？现有修改会被覆盖。");
   if (!accepted) return;
-  state = cloneTemplate(state.templateId);
+  state = customTemplate ? structuredClone(customTemplate.project) : cloneTemplate(state.templateId);
   selectedLayerId = state.layers.find((layer) => layer.type === "text")?.id ?? state.layers[0]?.id ?? null;
   resizeCanvas();
   commitHistory(true);
@@ -1338,6 +1463,9 @@ function updateHistoryButtons() {
 function updateTemplateCards() {
   document.querySelectorAll("[data-template-id]").forEach((card) => {
     card.classList.toggle("active", card.dataset.templateId === state.templateId);
+  });
+  document.querySelectorAll("[data-custom-template-id]").forEach((card) => {
+    card.classList.toggle("active", card.dataset.customTemplateId === state.templateId);
   });
 }
 

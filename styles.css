@@ -594,6 +594,34 @@ input[type="range"] {
   gap: 2px;
 }
 
+.custom-templates { margin-top: 18px; }
+.custom-templates-heading { margin-bottom: 8px; color: var(--muted); font-size: 10px; font-weight: 800; }
+.custom-template-list { display: grid; gap: 8px; }
+.custom-template-item { display: grid; grid-template-columns: minmax(0, 1fr) 34px; gap: 6px; }
+.custom-template-button {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 58px;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.custom-template-button:hover, .custom-template-button.active { border-color: var(--red); }
+.custom-template-ratio { display: grid; place-items: center; height: 42px; border: 1px solid #363c45; background: #050506; color: var(--red); font-size: 11px; font-weight: 900; }
+.custom-template-meta { min-width: 0; }
+.custom-template-meta b, .custom-template-meta small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-template-meta b { font-size: 11px; }
+.custom-template-meta small { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.custom-template-delete { width: 34px; min-height: 58px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; }
+.custom-template-delete:hover { border-color: var(--red); color: #fff; }
+
 .layer-action-button {
   display: grid;
   place-items: center;
