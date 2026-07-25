@@ -33,8 +33,8 @@ assert(js.includes('exportImage("image/jpeg"'), "缺少 JPG 导出");
 assert(js.includes('exportImage("image/webp"'), "缺少 WebP 导出");
 assert(js.includes("new FontFace"), "缺少本地字体加载能力");
 assert(css.includes(".workspace"), "缺少工作区布局样式");
-assert(pkg.version === "1.4.0", "package.json 版本应为 1.4.0");
-assert(js.includes('APP_VERSION = "1.4.0"'), "app.js 版本与 package.json 不一致");
+assert(pkg.version === "1.5.0", "package.json 版本应为 1.5.0");
+assert(js.includes('APP_VERSION = "1.5.0"'), "app.js 版本与 package.json 不一致");
 assert(html.includes('id="layerRotation"'), "缺少图层旋转控件");
 assert(html.includes('data-mobile-view="canvas"'), "缺少移动端工作区切换");
 assert(html.includes('id="canvasPreset"'), "缺少社媒画布尺寸预设");
@@ -46,6 +46,8 @@ assert(js.includes("saveAsCustomTemplate"), "缺少自定义模板保存逻辑")
 assert(html.includes('id="richTextStatus"'), "缺少局部文字样式提示");
 assert(js.includes("textRuns"), "缺少局部文字样式数据");
 assert(js.includes("wrapStyledText"), "缺少局部文字渲染");
+assert(html.includes('id="themeToggleButton"'), "缺少黑白模式切换按钮");
+assert(js.includes("applyTheme"), "缺少主题切换逻辑");
 assert(fs.existsSync(workflowPath), "缺少 GitHub Pages 工作流");
 if (fs.existsSync(workflowPath)) {
   const workflow = fs.readFileSync(workflowPath, "utf8");

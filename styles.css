@@ -43,6 +43,25 @@ body {
   overflow: hidden;
 }
 
+body[data-theme="light"] .topbar { background: rgba(255, 255, 255, 0.94); }
+body[data-theme="light"] .stage-column {
+  background:
+    linear-gradient(45deg, #e4e7eb 25%, transparent 25%),
+    linear-gradient(-45deg, #e4e7eb 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e4e7eb 75%),
+    linear-gradient(-45deg, transparent 75%, #e4e7eb 75%),
+    #f2f4f6;
+  background-size: 22px 22px;
+  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+}
+body[data-theme="light"] input:not([type="color"]),
+body[data-theme="light"] select,
+body[data-theme="light"] textarea { background: #fff; }
+body[data-theme="light"] .layer-item { background: #fbfcfd; }
+body[data-theme="light"] .layer-icon { background: #edf0f3; color: #5f6873; }
+body[data-theme="light"] .statusbar,
+body[data-theme="light"] .stage-toolbar { background: rgba(255, 255, 255, 0.9); }
+
 .app-shell {
   display: grid;
   grid-template-rows: 66px minmax(0, 1fr);
@@ -60,6 +79,20 @@ body {
   backdrop-filter: blur(14px);
   position: relative;
   z-index: 20;
+}
+
+body[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f1f3f6;
+  --panel: #ffffff;
+  --panel-2: #f7f8fa;
+  --panel-3: #eceff3;
+  --border: #d8dde4;
+  --border-soft: #e5e8ed;
+  --text: #1a1d22;
+  --muted: #66707c;
+  --focus: rgba(185, 18, 24, 0.18);
+  --shadow: 0 20px 60px rgba(20, 26, 34, 0.16);
 }
 
 .topbar::after {
@@ -463,6 +496,9 @@ input[type="range"] {
   backdrop-filter: blur(12px);
 }
 
+.theme-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.theme-toggle > span:first-child { font-size: 15px; line-height: 1; }
+
 .stage-title-block {
   display: flex;
   align-items: baseline;
@@ -777,6 +813,14 @@ input[type="range"] {
   .topbar-actions .button:not(.primary) {
     display: none;
   }
+
+  .topbar-actions .theme-toggle {
+    display: inline-flex !important;
+    min-width: 40px;
+    padding: 0 9px;
+  }
+
+  .theme-toggle-label { display: none; }
 
   .brand-block {
     min-width: 0;

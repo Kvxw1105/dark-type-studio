@@ -1,8 +1,9 @@
 "use strict";
 
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
+const THEME_KEY = "dark-type-studio:theme";
 const MAX_HISTORY = 60;
 const SNAP_DISTANCE_PX = 10;
 
@@ -326,6 +327,9 @@ let richTextSelection = null;
 init();
 
 function init() {
+  let savedTheme = "dark";
+  try { savedTheme = localStorage.getItem(THEME_KEY) || "dark"; } catch (error) { console.warn("Unable to read theme", error); }
+  applyTheme(savedTheme);
   populateFontOptions();
   bindEvents();
   loadCustomTemplates();
@@ -380,6 +384,7 @@ function bindEvents() {
 
   document.querySelector("#saveButton").addEventListener("click", saveToLocalStorage);
   document.querySelector("#loadButton").addEventListener("click", loadFromLocalStorage);
+  document.querySelector("#themeToggleButton").addEventListener("click", toggleTheme);
   document.querySelector("#downloadProjectButton").addEventListener("click", downloadProject);
   document.querySelector("#saveTemplateButton").addEventListener("click", saveAsCustomTemplate);
   document.querySelector("#importProjectInput").addEventListener("change", importProject);
@@ -421,6 +426,28 @@ function bindEvents() {
     const [width, height] = elements.canvasPreset.value.split("x").map(Number);
     applyCanvasSize(width, height);
   });
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "light" ? "light" : "dark";
+  document.body.dataset.theme = nextTheme;
+  const toggle = document.querySelector("#themeToggleButton");
+  if (!toggle) return;
+  const light = nextTheme === "light";
+  toggle.setAttribute("aria-pressed", String(light));
+  toggle.querySelector("span").textContent = light ? "☾" : "☼";
+  toggle.querySelector(".theme-toggle-label").textContent = light ? "黑色模式" : "白色模式";
+}
+
+function toggleTheme() {
+  const nextTheme = document.body.dataset.theme === "light" ? "dark" : "light";
+  try {
+    localStorage.setItem(THEME_KEY, nextTheme);
+  } catch (error) {
+    console.warn("Unable to persist theme", error);
+  }
+  applyTheme(nextTheme);
+  showToast(nextTheme === "light" ? "已切换到白色模式。" : "已切换到黑色模式。", false);
 }
 
 function loadCustomTemplates() {
