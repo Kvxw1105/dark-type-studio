@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const MAX_HISTORY = 60;
@@ -228,6 +228,7 @@ function textLayer(overrides = {}) {
     strokeWidth: 0,
     shadowColor: COLORS.black,
     shadowBlur: 0,
+    textRuns: [],
     ...overrides,
   });
 }
@@ -274,6 +275,7 @@ const elements = {
   emptyEditor: document.querySelector("#emptyEditor"),
   layerEditor: document.querySelector("#layerEditor"),
   layerText: document.querySelector("#layerText"),
+  richTextStatus: document.querySelector("#richTextStatus"),
   fontFamily: document.querySelector("#fontFamily"),
   fontWeight: document.querySelector("#fontWeight"),
   fontUploadInput: document.querySelector("#fontUploadInput"),
@@ -319,6 +321,7 @@ let suppressHistory = false;
 let customFonts = [...FONT_OPTIONS];
 let alignmentGuides = { vertical: false, horizontal: false };
 let customTemplates = [];
+let richTextSelection = null;
 
 init();
 
@@ -399,6 +402,7 @@ function bindEvents() {
   elements.layerList.addEventListener("click", handleLayerListClick);
   elements.layerEditor.addEventListener("input", handleEditorInput);
   elements.layerEditor.addEventListener("change", handleEditorInput);
+  ["select", "keyup", "click"].forEach((eventName) => elements.layerText.addEventListener(eventName, updateRichTextStatus));
   elements.fontUploadInput.addEventListener("change", loadCustomFont);
 
   elements.canvas.addEventListener("pointerdown", handlePointerDown);
@@ -609,6 +613,9 @@ function applyCanvasSize(width, height) {
     layer.x *= scaleX;
     layer.y *= scaleY;
     if (layer.fontSize) layer.fontSize *= sizeScale;
+    for (const run of layer.textRuns ?? []) {
+      if (run.style?.fontSize) run.style.fontSize *= sizeScale;
+    }
     if (layer.maxWidth) layer.maxWidth *= scaleX;
     if (layer.size) layer.size *= sizeScale;
     if (layer.width) layer.width *= scaleX;
@@ -724,24 +731,25 @@ function rotatedBounds(box, originX, originY, radians) {
 }
 
 function drawTextLayer(ctx, layer) {
-  applyTextStyle(ctx, layer);
-  const lines = wrapText(ctx, layer.text ?? "", layer.maxWidth, layer.letterSpacing);
-  const lineHeightPx = layer.fontSize * layer.lineHeight;
+  const lines = wrapStyledText(ctx, layer);
   let maxRenderedWidth = 0;
+  let maxFontSize = layer.fontSize;
+  let totalHeight = 0;
 
-  lines.forEach((line, index) => {
-    const lineY = layer.y + index * lineHeightPx;
-    const width = measureSpacedText(ctx, line, layer.letterSpacing);
-    maxRenderedWidth = Math.max(maxRenderedWidth, width);
-
-    if (layer.strokeWidth > 0) {
-      drawSpacedText(ctx, line, layer.x, lineY, layer.letterSpacing, layer.align, true);
-    }
-    drawSpacedText(ctx, line, layer.x, lineY, layer.letterSpacing, layer.align, false);
+  lines.forEach((line) => {
+    maxRenderedWidth = Math.max(maxRenderedWidth, line.width);
+    maxFontSize = Math.max(maxFontSize, line.maxFontSize);
   });
 
-  const ascent = layer.fontSize * 0.82;
-  const totalHeight = Math.max(lineHeightPx, lines.length * lineHeightPx);
+  lines.forEach((line, index) => {
+    const lineHeight = Math.max(layer.fontSize * layer.lineHeight, line.maxFontSize * layer.lineHeight);
+    const lineY = layer.y + totalHeight;
+    drawStyledLine(ctx, layer, line, lineY);
+    totalHeight += lineHeight;
+  });
+
+  const ascent = maxFontSize * 0.82;
+  totalHeight = Math.max(layer.fontSize * layer.lineHeight, totalHeight);
   let left = layer.x;
   if (layer.align === "center") left -= maxRenderedWidth / 2;
   if (layer.align === "right") left -= maxRenderedWidth;
@@ -778,6 +786,93 @@ function drawSealLayer(ctx, layer) {
     width: width + 16,
     height: height + 16,
   };
+}
+
+function wrapStyledText(ctx, layer) {
+  const tokens = getStyledTokens(layer);
+  const lines = [];
+  let line = createStyledLine();
+
+  for (const token of tokens) {
+    if (token.char === "\n") {
+      lines.push(finalizeStyledLine(line));
+      line = createStyledLine();
+      continue;
+    }
+    const tokenWidth = measureStyledToken(ctx, token);
+    const spacing = line.tokens.length ? layer.letterSpacing : 0;
+    if (line.tokens.length && line.width + spacing + tokenWidth > layer.maxWidth) {
+      lines.push(finalizeStyledLine(line));
+      line = createStyledLine();
+    }
+    line.tokens.push({ ...token, width: tokenWidth });
+    line.width += (line.tokens.length > 1 ? layer.letterSpacing : 0) + tokenWidth;
+    line.maxFontSize = Math.max(line.maxFontSize, token.style.fontSize);
+  }
+  lines.push(finalizeStyledLine(line));
+  return lines;
+}
+
+function createStyledLine() {
+  return { tokens: [], width: 0, maxFontSize: 0 };
+}
+
+function finalizeStyledLine(line) {
+  return { ...line, maxFontSize: line.maxFontSize || 1 };
+}
+
+function getStyledTokens(layer) {
+  const tokens = [];
+  const text = String(layer.text ?? "");
+  let index = 0;
+  for (const char of text) {
+    tokens.push({ char, style: getTextStyleAt(layer, index) });
+    index += char.length;
+  }
+  return tokens;
+}
+
+function getTextStyleAt(layer, index) {
+  const style = {
+    fontFamily: layer.fontFamily,
+    fontWeight: layer.fontWeight,
+    fontSize: layer.fontSize,
+    color: layer.color,
+  };
+  for (const run of layer.textRuns ?? []) {
+    if (index >= run.start && index < run.end) Object.assign(style, run.style);
+  }
+  return style;
+}
+
+function measureStyledToken(ctx, token) {
+  ctx.save();
+  ctx.font = `${token.style.fontWeight} ${token.style.fontSize}px ${token.style.fontFamily}`;
+  const width = ctx.measureText(token.char).width;
+  ctx.restore();
+  return width;
+}
+
+function drawStyledLine(ctx, layer, line, y) {
+  let cursorX = layer.x;
+  if (layer.align === "center") cursorX -= line.width / 2;
+  if (layer.align === "right") cursorX -= line.width;
+  line.tokens.forEach((token, index) => {
+    ctx.save();
+    ctx.font = `${token.style.fontWeight} ${token.style.fontSize}px ${token.style.fontFamily}`;
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = token.style.color;
+    ctx.strokeStyle = layer.strokeColor;
+    ctx.lineWidth = layer.strokeWidth * 2;
+    ctx.lineJoin = "round";
+    ctx.shadowColor = layer.shadowColor;
+    ctx.shadowBlur = layer.shadowBlur;
+    ctx.shadowOffsetY = Math.max(0, layer.shadowBlur * 0.12);
+    if (layer.strokeWidth > 0) ctx.strokeText(token.char, cursorX, y);
+    ctx.fillText(token.char, cursorX, y);
+    ctx.restore();
+    cursorX += token.width + (index < line.tokens.length - 1 ? layer.letterSpacing : 0);
+  });
 }
 
 function roundedRectPath(ctx, x, y, width, height, radius) {
@@ -951,6 +1046,8 @@ function renderEditor() {
     elements.strokeWidth.value = layer.strokeWidth;
     elements.shadowColor.value = layer.shadowColor;
     elements.shadowBlur.value = layer.shadowBlur;
+    richTextSelection = null;
+    updateRichTextStatus();
   }
 
   if (layer.type === "seal") {
@@ -1006,8 +1103,29 @@ function handleEditorInput(event) {
   const id = event.target.id;
   const value = event.target.value;
 
+  const localStyleFields = {
+    fontFamily: () => ({ fontFamily: value }),
+    fontWeight: () => ({ fontWeight: Number(value) }),
+    fontSize: () => ({ fontSize: Number(value) }),
+    layerColor: () => ({ color: value }),
+  };
+  if (layer.type === "text" && localStyleFields[id] && hasTextSelection()) {
+    if (event.type !== "change") return;
+    if (!applyTextStyleToSelection(layer, localStyleFields[id]())) return;
+    touchState();
+    drawCanvas();
+    renderLayerList();
+    updateRichTextStatus();
+    commitHistory();
+    return;
+  }
+
   const handlers = {
-    layerText: () => (layer.text = value),
+    layerText: () => {
+      layer.text = value;
+      layer.textRuns = [];
+      richTextSelection = null;
+    },
     fontFamily: () => (layer.fontFamily = value),
     fontWeight: () => (layer.fontWeight = Number(value)),
     layerX: () => (layer.x = Number(value)),
@@ -1041,6 +1159,39 @@ function handleEditorInput(event) {
   renderLayerList();
 
   if (event.type === "change" || id === "layerText") commitHistory();
+}
+
+function hasTextSelection() {
+  const layer = getSelectedLayer();
+  return Boolean(layer && richTextSelection?.layerId === layer.id && richTextSelection.start !== richTextSelection.end);
+}
+
+function applyTextStyleToSelection(layer, style) {
+  const { start, end } = richTextSelection ?? {};
+  if (start === end) return;
+  layer.textRuns ??= [];
+  const existing = [...layer.textRuns].reverse().find((run) => run.start === start && run.end === end);
+  if (existing) {
+    const changed = Object.entries(style).some(([key, value]) => existing.style[key] !== value);
+    if (!changed) return false;
+    Object.assign(existing.style, style);
+  } else {
+    layer.textRuns.push({ start, end, style });
+  }
+  if (layer.textRuns.length > 80) layer.textRuns.splice(0, layer.textRuns.length - 80);
+  return true;
+}
+
+function updateRichTextStatus() {
+  const layer = getSelectedLayer();
+  if (!layer || layer.type !== "text") return;
+  const start = elements.layerText.selectionStart;
+  const end = elements.layerText.selectionEnd;
+  if (start !== end) richTextSelection = { layerId: layer.id, start, end };
+  const count = richTextSelection?.layerId === layer.id ? richTextSelection.end - richTextSelection.start : 0;
+  elements.richTextStatus.textContent = count
+    ? `已选择 ${count} 个字符：字体、字重、字号和颜色将只应用于选中部分。`
+    : "选中文字后，字体、字重、字号和颜色只作用于选中部分。";
 }
 
 function addTextLayer() {
