@@ -33,7 +33,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p _site
-          cp index.html styles.css app.js studio-core.js .nojekyll _site/
+          cp index.html landing.css landing.js studio.html styles.css app.js studio-core.js .nojekyll _site/
+          cp -r assets _site/
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static site

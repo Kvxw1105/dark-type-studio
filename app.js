@@ -324,6 +324,7 @@ let alignmentGuides = { vertical: false, horizontal: false };
 let customTemplates = [];
 let richTextSelection = null;
 let inlineTextEditor = null;
+let hasUnsavedChanges = false;
 
 init();
 
@@ -333,6 +334,11 @@ function init() {
   applyTheme(savedTheme);
   populateFontOptions();
   bindEvents();
+  window.addEventListener("beforeunload", (event) => {
+    if (!hasUnsavedChanges) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   const urlProject = readUrlProject();
   if (urlProject) {
     state = urlProject;
@@ -614,6 +620,7 @@ function switchTemplate(templateId) {
   if (!TEMPLATE_DEFINITIONS[templateId] || templateId === state.templateId) return;
   state = cloneTemplate(templateId);
   selectedLayerId = state.layers.find((layer) => layer.type === "text")?.id ?? state.layers[0]?.id ?? null;
+  touchState();
   resizeCanvas();
   commitHistory(true);
   renderAll();
@@ -632,6 +639,7 @@ function resetCurrentTemplate() {
   if (!accepted) return;
   state = customTemplate ? structuredClone(customTemplate.project) : cloneTemplate(state.templateId);
   selectedLayerId = state.layers.find((layer) => layer.type === "text")?.id ?? state.layers[0]?.id ?? null;
+  touchState();
   resizeCanvas();
   commitHistory(true);
   renderAll();
@@ -1280,11 +1288,23 @@ function duplicateSelectedLayer() {
 function deleteSelectedLayer() {
   const index = state.layers.findIndex((layer) => layer.id === selectedLayerId);
   if (index < 0) return;
+  const deleted = structuredClone(state.layers[index]);
   state.layers.splice(index, 1);
   selectedLayerId = state.layers[Math.min(index, state.layers.length - 1)]?.id ?? null;
   touchState();
   commitHistory();
   renderAll();
+  showToast(`图层「${deleted.name}」已删除。`, false, {
+    label: "撤销",
+    run: () => {
+      state.layers.splice(Math.min(index, state.layers.length), 0, deleted);
+      selectedLayerId = deleted.id;
+      touchState();
+      commitHistory();
+      renderAll();
+      showToast("已恢复删除的图层。", false);
+    },
+  });
 }
 
 function moveSelectedLayerUp() {
@@ -1580,6 +1600,7 @@ async function exportImage(mimeType, extension) {
 function saveToLocalStorage() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    hasUnsavedChanges = false;
     elements.statusMessage.textContent = "已保存到本机";
     showToast("项目已保存到当前浏览器。", false);
   } catch (error) {
@@ -1626,6 +1647,7 @@ async function importProject(event) {
 
 function applyProject(project) {
   state = DarkTypeStudioCore.normalizeProject(project);
+  hasUnsavedChanges = false;
   selectedLayerId = state.layers[0]?.id ?? null;
   resizeCanvas();
   commitHistory(true);
@@ -1719,6 +1741,7 @@ function redo() {
 function restoreHistorySnapshot(snapshot) {
   suppressHistory = true;
   state = JSON.parse(snapshot);
+  hasUnsavedChanges = true;
   if (!state.layers.some((layer) => layer.id === selectedLayerId)) selectedLayerId = state.layers[0]?.id ?? null;
   resizeCanvas();
   renderAll();
@@ -1748,6 +1771,7 @@ function touchState() {
   state.format = DarkTypeStudioCore.PROJECT_FORMAT;
   state.revision = (Number.isInteger(state.revision) ? state.revision : 0) + 1;
   state.updatedAt = new Date().toISOString();
+  hasUnsavedChanges = true;
   elements.statusMessage.textContent = "存在未保存修改";
 }
 
@@ -1774,9 +1798,20 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function showToast(message, isError = false) {
+function showToast(message, isError = false, action = null) {
   clearTimeout(toastTimer);
   elements.toast.textContent = message;
+  if (action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "toast-action";
+    button.textContent = action.label;
+    button.addEventListener("click", () => {
+      action.run();
+      elements.toast.classList.remove("show");
+    }, { once: true });
+    elements.toast.appendChild(button);
+  }
   elements.toast.style.borderColor = isError ? "rgba(233, 25, 32, 0.65)" : "#353b45";
   elements.toast.classList.add("show");
   toastTimer = setTimeout(() => elements.toast.classList.remove("show"), 2600);

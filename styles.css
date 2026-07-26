@@ -19,6 +19,19 @@
   box-sizing: border-box;
 }
 
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  padding: 8px 12px;
+  color: #fff;
+  background: var(--red);
+  transform: translateY(-140%);
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 html,
 body {
   min-width: 1180px;
@@ -824,7 +837,18 @@ input[type="range"] {
 
 .toast.show {
   opacity: 1;
+  pointer-events: auto;
   transform: translate(-50%, 0);
+}
+
+.toast-action {
+  margin-left: 12px;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
 }
 
 @media (max-width: 1320px) {

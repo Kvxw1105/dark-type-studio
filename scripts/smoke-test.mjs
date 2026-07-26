@@ -3,7 +3,7 @@ import path from "node:path";
 import process from "node:process";
 
 const root = path.resolve(import.meta.dirname, "..");
-const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+const html = fs.readFileSync(path.join(root, "studio.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const core = fs.readFileSync(path.join(root, "studio-core.js"), "utf8");
@@ -49,6 +49,9 @@ assert(js.includes("textRuns"), "缺少局部文字样式数据");
 assert(js.includes("wrapStyledText"), "缺少局部文字渲染");
 assert(html.includes('id="themeToggleButton"'), "缺少黑白模式切换按钮");
 assert(js.includes("applyTheme"), "缺少主题切换逻辑");
+assert(js.includes("beforeunload"), "缺少未保存离开保护");
+assert(js.includes("toast-action"), "缺少删除后的撤销反馈");
+assert(html.includes('class="skip-link"'), "缺少跳到画布快捷入口");
 assert(html.includes('src="./studio-core.js"'), "网页未加载共享项目内核");
 assert(core.includes("CAPABILITIES"), "缺少 Agent 能力注册表");
 assert(fs.existsSync(path.join(root, "bin", "dark-type.cjs")), "缺少 Agent CLI");

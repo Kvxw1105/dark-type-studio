@@ -84,7 +84,7 @@ async function exportProject(project, output, format, scale) {
   if (!mime) throw new Error("导出格式必须为 png、jpg 或 webp。");
   const port = 21000 + Math.floor(Math.random() * 1000);
   const profile = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "dark-type-chrome-"));
-  const pageUrl = `file:///${path.resolve(__dirname, "..", "index.html").replace(/\\/g, "/")}?project=${projectUrl(project)}`;
+  const pageUrl = `file:///${path.resolve(__dirname, "..", "studio.html").replace(/\\/g, "/")}?project=${projectUrl(project)}`;
   const chromeArgs = ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage", "--no-first-run", `--remote-debugging-address=127.0.0.1`, `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--allow-file-access-from-files", pageUrl];
   if (process.platform !== "win32") chromeArgs.push("--no-sandbox");
   const chromeProcess = childProcess.spawn(chrome, chromeArgs, { stdio: "ignore", windowsHide: true });
@@ -92,7 +92,7 @@ async function exportProject(project, output, format, scale) {
   try {
     cdp = await connectCdp(await waitForTarget(port));
     let dataUrl = "";
-    for (let attempt = 0; attempt < 30 && !dataUrl; attempt += 1) {
+    for (let attempt = 0; attempt < 100 && !dataUrl; attempt += 1) {
       const result = await cdp.call("Runtime.evaluate", { expression: `(() => { if (!window.DarkTypeStudio || !window.drawCanvas) return ''; const source = document.querySelector('#designCanvas'); const output = document.createElement('canvas'); output.width = source.width * ${scale}; output.height = source.height * ${scale}; drawCanvas(output.getContext('2d'), ${scale}, false); return output.toDataURL('${mime}', 0.92); })()`, returnByValue: true });
       dataUrl = result.result?.value || "";
       if (!dataUrl) await new Promise((resolve) => setTimeout(resolve, 100));
