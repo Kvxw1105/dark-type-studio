@@ -42,7 +42,7 @@ function findChrome() {
   });
 }
 async function waitForTarget(port) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json/list`);
       const targets = await response.json();
@@ -85,7 +85,9 @@ async function exportProject(project, output, format, scale) {
   const port = 21000 + Math.floor(Math.random() * 1000);
   const profile = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "dark-type-chrome-"));
   const pageUrl = `file:///${path.resolve(__dirname, "..", "index.html").replace(/\\/g, "/")}?project=${projectUrl(project)}`;
-  const chromeProcess = childProcess.spawn(chrome, ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage", "--no-first-run", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--allow-file-access-from-files", pageUrl], { stdio: "ignore", windowsHide: true });
+  const chromeArgs = ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage", "--no-first-run", `--remote-debugging-address=127.0.0.1`, `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--allow-file-access-from-files", pageUrl];
+  if (process.platform !== "win32") chromeArgs.push("--no-sandbox");
+  const chromeProcess = childProcess.spawn(chrome, chromeArgs, { stdio: "ignore", windowsHide: true });
   let cdp;
   try {
     cdp = await connectCdp(await waitForTarget(port));
