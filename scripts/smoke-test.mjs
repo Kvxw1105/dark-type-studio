@@ -6,6 +6,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
+const core = fs.readFileSync(path.join(root, "studio-core.js"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const workflowPath = path.join(root, ".github", "workflows", "pages.yml");
 
@@ -33,8 +34,8 @@ assert(js.includes('exportImage("image/jpeg"'), "缺少 JPG 导出");
 assert(js.includes('exportImage("image/webp"'), "缺少 WebP 导出");
 assert(js.includes("new FontFace"), "缺少本地字体加载能力");
 assert(css.includes(".workspace"), "缺少工作区布局样式");
-assert(pkg.version === "1.5.1", "package.json 版本应为 1.5.1");
-assert(js.includes('APP_VERSION = "1.5.1"'), "app.js 版本与 package.json 不一致");
+assert(pkg.version === "1.6.0", "package.json 版本应为 1.6.0");
+assert(js.includes('APP_VERSION = "1.6.0"'), "app.js 版本与 package.json 不一致");
 assert(html.includes('id="layerRotation"'), "缺少图层旋转控件");
 assert(html.includes('data-mobile-view="canvas"'), "缺少移动端工作区切换");
 assert(html.includes('id="canvasPreset"'), "缺少社媒画布尺寸预设");
@@ -48,12 +49,17 @@ assert(js.includes("textRuns"), "缺少局部文字样式数据");
 assert(js.includes("wrapStyledText"), "缺少局部文字渲染");
 assert(html.includes('id="themeToggleButton"'), "缺少黑白模式切换按钮");
 assert(js.includes("applyTheme"), "缺少主题切换逻辑");
+assert(html.includes('src="./studio-core.js"'), "网页未加载共享项目内核");
+assert(core.includes("CAPABILITIES"), "缺少 Agent 能力注册表");
+assert(fs.existsSync(path.join(root, "bin", "dark-type.cjs")), "缺少 Agent CLI");
+assert(fs.existsSync(path.join(root, "mcp-server.cjs")), "缺少 MCP Server");
 assert(fs.existsSync(workflowPath), "缺少 GitHub Pages 工作流");
 if (fs.existsSync(workflowPath)) {
   const workflow = fs.readFileSync(workflowPath, "utf8");
   for (const required of ["actions/checkout@", "npm test", "actions/configure-pages@", "actions/upload-pages-artifact@", "actions/deploy-pages@"]) {
     assert(workflow.includes(required), `Pages 工作流缺少 ${required}`);
   }
+  assert(workflow.includes("studio-core.js"), "Pages 工作流未发布共享项目内核");
 }
 
 if (failures.length) {

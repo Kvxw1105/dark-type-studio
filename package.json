@@ -1,11 +1,13 @@
 {
   "name": "dark-type-studio",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "description": "黑底红白字封面与视频标题页的纯前端排版工具",
   "scripts": {
     "serve": "python -m http.server 4173",
-    "test": "node --check app.js && node scripts/smoke-test.mjs"
+    "test": "node --check app.js && node --check studio-core.js && node --check mcp-server.cjs && node scripts/smoke-test.mjs && node scripts/agent-contract-test.cjs",
+    "dark-type": "node bin/dark-type.cjs",
+    "mcp": "node mcp-server.cjs"
   },
   "engines": {
     "node": ">=20"

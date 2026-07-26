@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.5.1";
+const APP_VERSION = "1.6.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
@@ -332,18 +332,39 @@ function init() {
   applyTheme(savedTheme);
   populateFontOptions();
   bindEvents();
-  loadCustomTemplates();
-  restoreSavedProject();
+  const urlProject = readUrlProject();
+  if (urlProject) {
+    state = urlProject;
+    selectedLayerId = null;
+  } else {
+    loadCustomTemplates();
+    restoreSavedProject();
+  }
   commitHistory();
   resizeCanvas();
   renderAll();
   requestAnimationFrame(fitCanvasToStage);
 }
 
+function readUrlProject() {
+  const encoded = new URLSearchParams(window.location.search).get("project");
+  if (!encoded) return null;
+  try {
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+    return DarkTypeStudioCore.normalizeProject(JSON.parse(new TextDecoder().decode(bytes)));
+  } catch (error) {
+    console.warn("Unable to load URL project", error);
+    return null;
+  }
+}
+
 function cloneTemplate(templateId) {
   const template = TEMPLATE_DEFINITIONS[templateId];
-  return structuredClone({
+  return DarkTypeStudioCore.normalizeProject({
+    format: DarkTypeStudioCore.PROJECT_FORMAT,
     version: APP_VERSION,
+    revision: 0,
     templateId: template.id,
     name: template.name,
     width: template.width,
@@ -1529,8 +1550,7 @@ async function importProject(event) {
 }
 
 function applyProject(project) {
-  validateProject(project);
-  state = structuredClone(project);
+  state = DarkTypeStudioCore.normalizeProject(project);
   selectedLayerId = state.layers[0]?.id ?? null;
   resizeCanvas();
   commitHistory(true);
@@ -1540,9 +1560,7 @@ function applyProject(project) {
 }
 
 function validateProject(project) {
-  if (!project || typeof project !== "object") throw new Error("Invalid project");
-  if (!Number.isFinite(project.width) || !Number.isFinite(project.height)) throw new Error("Invalid canvas size");
-  if (!Array.isArray(project.layers)) throw new Error("Invalid layers");
+  return DarkTypeStudioCore.validateProject(project);
 }
 
 async function loadCustomFont(event) {
@@ -1652,9 +1670,23 @@ function getSelectedLayer() {
 }
 
 function touchState() {
+  state.format = DarkTypeStudioCore.PROJECT_FORMAT;
+  state.revision = (Number.isInteger(state.revision) ? state.revision : 0) + 1;
   state.updatedAt = new Date().toISOString();
   elements.statusMessage.textContent = "存在未保存修改";
 }
+
+// ponytail: browser integrations use the same project operations as CLI and MCP.
+window.DarkTypeStudio = {
+  capabilities: DarkTypeStudioCore.CAPABILITIES,
+  getProject: () => ({ project: structuredClone(state), revision: DarkTypeStudioCore.revisionOf(state) }),
+  applyOperations: (operations, baseRevision) => {
+    const result = DarkTypeStudioCore.applyOperations(state, operations, { baseRevision });
+    applyProject(result.project);
+    showToast(`已应用 ${result.operations.length} 项 Agent 操作。`, false);
+    return result;
+  },
+};
 
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);

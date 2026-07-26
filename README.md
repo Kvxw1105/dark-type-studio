@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-`v1.5.1`
+`v1.6.0`
 
 当前内置两套模板：
 
@@ -71,3 +71,16 @@ http://localhost:4173
 - 批量生成多张封面
 - 视频标题动画与 MP4/WebM 导出
 - 字体资产管理
+
+## Agent / MCP
+
+`v1.6.0` 将项目操作抽为共享协议，网页、CLI 和 MCP 共用同一套项目校验、revision 与图层操作。
+
+```bash
+npm run dark-type -- capabilities
+npm run dark-type -- inspect cover.json
+npm run dark-type -- export cover.json --format webp --scale 2 --output cover.webp
+npm run mcp
+```
+
+MCP Server 使用标准 stdin/stdout JSON-RPC，提供 `studio_capabilities`、`studio_get_project`、`studio_apply_operations`、`studio_validate_project` 与 `studio_export_image`。导出由 Chrome 中运行的同一 Canvas 渲染器完成，支持 PNG、JPG、WebP 及 1×、2×、4×。Agent Skill 位于 `skills/dark-type-studio/SKILL.md`。
