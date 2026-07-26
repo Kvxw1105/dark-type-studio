@@ -84,3 +84,5 @@ npm run mcp
 ```
 
 MCP Server 使用标准 stdin/stdout JSON-RPC，提供 `studio_capabilities`、`studio_get_project`、`studio_apply_operations`、`studio_validate_project` 与 `studio_export_image`。导出由 Chrome 中运行的同一 Canvas 渲染器完成，支持 PNG、JPG、WebP 及 1×、2×、4×。Agent Skill 位于 `skills/dark-type-studio/SKILL.md`。
+
+CLI 会自动查找 Google Chrome 或 Chromium；也可用 `DARK_TYPE_CHROME` 指定浏览器可执行文件。

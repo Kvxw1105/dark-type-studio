@@ -24,8 +24,22 @@ function projectUrl(project) {
   return Buffer.from(JSON.stringify(project)).toString("base64url");
 }
 function findChrome() {
-  const candidates = [process.env.DARK_TYPE_CHROME, "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"];
-  return candidates.find((candidate) => candidate && fs.existsSync(candidate));
+  const candidates = [
+    process.env.DARK_TYPE_CHROME,
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+  ];
+  return candidates.find((candidate) => {
+    if (!candidate) return false;
+    if (candidate.includes("/") || candidate.includes("\\")) return fs.existsSync(candidate);
+    return !childProcess.spawnSync(candidate, ["--version"], { stdio: "ignore" }).error;
+  });
 }
 async function waitForTarget(port) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -71,7 +85,7 @@ async function exportProject(project, output, format, scale) {
   const port = 21000 + Math.floor(Math.random() * 1000);
   const profile = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "dark-type-chrome-"));
   const pageUrl = `file:///${path.resolve(__dirname, "..", "index.html").replace(/\\/g, "/")}?project=${projectUrl(project)}`;
-  const chromeProcess = childProcess.spawn(chrome, ["--headless=new", "--disable-gpu", "--no-first-run", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--allow-file-access-from-files", pageUrl], { stdio: "ignore", windowsHide: true });
+  const chromeProcess = childProcess.spawn(chrome, ["--headless=new", "--disable-gpu", "--disable-dev-shm-usage", "--no-first-run", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, "--allow-file-access-from-files", pageUrl], { stdio: "ignore", windowsHide: true });
   let cdp;
   try {
     cdp = await connectCdp(await waitForTarget(port));
