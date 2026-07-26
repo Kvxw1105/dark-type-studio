@@ -323,6 +323,7 @@ let customFonts = [...FONT_OPTIONS];
 let alignmentGuides = { vertical: false, horizontal: false };
 let customTemplates = [];
 let richTextSelection = null;
+let inlineTextEditor = null;
 
 init();
 
@@ -432,6 +433,7 @@ function bindEvents() {
   elements.fontUploadInput.addEventListener("change", loadCustomFont);
 
   elements.canvas.addEventListener("pointerdown", handlePointerDown);
+  elements.canvas.addEventListener("dblclick", handleCanvasDoubleClick);
   window.addEventListener("pointermove", handlePointerMove);
   window.addEventListener("pointerup", handlePointerUp);
   window.addEventListener("resize", () => {
@@ -1400,6 +1402,79 @@ function handlePointerUp(event) {
   delete elements.canvas.dataset.guideX;
   delete elements.canvas.dataset.guideY;
   renderAll();
+}
+
+function handleCanvasDoubleClick(event) {
+  const point = pointerToCanvas(event);
+  const target = [...hitBoxes].reverse().find((box) => pointInBox(point, box));
+  if (!target) return;
+  const layer = state.layers.find((entry) => entry.id === target.layerId);
+  if (!layer || layer.locked || (layer.type !== "text" && layer.type !== "seal")) return;
+  selectedLayerId = layer.id;
+  startInlineTextEditing(layer, target);
+}
+
+function startInlineTextEditing(layer, box) {
+  inlineTextEditor?.commit();
+  const input = document.createElement("textarea");
+  const scale = elements.canvas.clientWidth / state.width;
+  const originalText = layer.text ?? "";
+  const originalRuns = structuredClone(layer.textRuns ?? []);
+  input.className = "canvas-inline-editor";
+  input.value = originalText;
+  input.rows = Math.max(1, String(originalText).split("\n").length);
+  input.setAttribute("aria-label", `编辑图层 ${layer.name}`);
+  Object.assign(input.style, {
+    left: `${Math.max(0, box.x * scale)}px`,
+    top: `${Math.max(0, box.y * scale)}px`,
+    width: `${Math.max(72, box.width * scale)}px`,
+    minHeight: `${Math.max(38, box.height * scale)}px`,
+    fontFamily: layer.fontFamily,
+    fontSize: `${Math.max(14, layer.fontSize * scale)}px`,
+    fontWeight: layer.fontWeight,
+    lineHeight: String(layer.lineHeight ?? 1),
+    letterSpacing: `${(layer.letterSpacing ?? 0) * scale}px`,
+    color: layer.color,
+    textAlign: layer.align ?? "center",
+    transform: `rotate(${layer.rotation ?? 0}deg)`,
+  });
+  let settled = false;
+  const finish = (restore = false) => {
+    if (settled) return;
+    settled = true;
+    if (restore) {
+      layer.text = originalText;
+      layer.textRuns = originalRuns;
+      touchState();
+    } else if (layer.text !== originalText) commitHistory();
+    input.remove();
+    inlineTextEditor = null;
+    renderAll();
+  };
+  input.addEventListener("input", () => {
+    layer.text = input.value;
+    layer.textRuns = [];
+    touchState();
+    drawCanvas();
+    renderLayerList();
+  });
+  input.addEventListener("blur", () => finish());
+  input.addEventListener("keydown", (keyboardEvent) => {
+    if (keyboardEvent.key === "Escape") {
+      keyboardEvent.preventDefault();
+      finish(true);
+    }
+    if (keyboardEvent.key === "Enter" && (keyboardEvent.ctrlKey || keyboardEvent.metaKey)) {
+      keyboardEvent.preventDefault();
+      input.blur();
+    }
+  });
+  elements.canvasShell.appendChild(input);
+  inlineTextEditor = { commit: () => finish() };
+  requestAnimationFrame(() => {
+    input.focus();
+    input.select();
+  });
 }
 
 function pointerToCanvas(event) {

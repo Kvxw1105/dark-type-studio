@@ -605,6 +605,22 @@ input[type="range"] {
   cursor: grabbing;
 }
 
+.canvas-inline-editor {
+  position: absolute;
+  z-index: 2;
+  display: block;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 0.08em 0.14em;
+  border: 1px solid var(--red);
+  border-radius: 2px;
+  outline: 2px solid rgba(233, 25, 32, 0.28);
+  outline-offset: 2px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  transform-origin: center center;
+}
+
 #statusMessage {
   display: inline-flex;
   align-items: center;
