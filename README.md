@@ -48,6 +48,8 @@ http://localhost:4173
 
 也可以使用 VS Code 的 Live Server，或直接部署到 GitHub Pages、Vercel、Netlify。
 
+Agent CLI 和 MCP Server 需要 Node.js 22+。
+
 ## GitHub Pages
 
 推送 `main` 后，GitHub Actions 会运行检查并将精简的静态文件部署到 GitHub Pages。
