@@ -618,6 +618,21 @@ input[type="range"] {
   cursor: grabbing;
 }
 
+#designCanvas[data-resize-handle="nw"],
+#designCanvas[data-resize-handle="se"] { cursor: nwse-resize; }
+
+#designCanvas[data-resize-handle="ne"],
+#designCanvas[data-resize-handle="sw"] { cursor: nesw-resize; }
+
+#designCanvas.resizing { cursor: nwse-resize; }
+
+.rich-text-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .canvas-inline-editor {
   position: absolute;
   z-index: 2;

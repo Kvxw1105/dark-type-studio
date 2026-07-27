@@ -277,6 +277,7 @@ const elements = {
   layerEditor: document.querySelector("#layerEditor"),
   layerText: document.querySelector("#layerText"),
   richTextStatus: document.querySelector("#richTextStatus"),
+  clearRichTextSelectionButton: document.querySelector("#clearRichTextSelectionButton"),
   fontFamily: document.querySelector("#fontFamily"),
   fontWeight: document.querySelector("#fontWeight"),
   fontUploadInput: document.querySelector("#fontUploadInput"),
@@ -325,6 +326,7 @@ let customTemplates = [];
 let richTextSelection = null;
 let inlineTextEditor = null;
 let hasUnsavedChanges = false;
+let resizeState = null;
 
 init();
 
@@ -437,6 +439,7 @@ function bindEvents() {
   elements.layerEditor.addEventListener("change", handleEditorInput);
   ["select", "keyup", "click"].forEach((eventName) => elements.layerText.addEventListener(eventName, updateRichTextStatus));
   elements.fontUploadInput.addEventListener("change", loadCustomFont);
+  elements.clearRichTextSelectionButton.addEventListener("click", clearRichTextSelection);
 
   elements.canvas.addEventListener("pointerdown", handlePointerDown);
   elements.canvas.addEventListener("dblclick", handleCanvasDoubleClick);
@@ -1041,6 +1044,23 @@ function drawSelection(ctx, box) {
   ctx.restore();
 }
 
+function selectionCorners(box) {
+  return [
+    { id: "nw", x: box.x, y: box.y },
+    { id: "ne", x: box.x + box.width, y: box.y },
+    { id: "sw", x: box.x, y: box.y + box.height },
+    { id: "se", x: box.x + box.width, y: box.y + box.height },
+  ];
+}
+
+function getResizeHandleAtPoint(point) {
+  if (!selectedLayerId) return null;
+  const box = hitBoxes.find((entry) => entry.layerId === selectedLayerId);
+  if (!box) return null;
+  const radius = 18 / Math.max(customZoom, 0.1);
+  return selectionCorners(box).find((corner) => Math.hypot(point.x - corner.x, point.y - corner.y) <= radius)?.id ?? null;
+}
+
 function renderLayerList() {
   elements.layerList.innerHTML = "";
   [...state.layers].reverse().forEach((layer) => {
@@ -1173,6 +1193,7 @@ function handleEditorInput(event) {
     touchState();
     drawCanvas();
     renderLayerList();
+    clearRichTextSelection();
     updateRichTextStatus();
     commitHistory();
     return;
@@ -1242,7 +1263,10 @@ function applyTextStyleToSelection(layer, style) {
 
 function updateRichTextStatus() {
   const layer = getSelectedLayer();
-  if (!layer || layer.type !== "text") return;
+  if (!layer || layer.type !== "text") {
+    elements.clearRichTextSelectionButton.classList.add("hidden");
+    return;
+  }
   const start = elements.layerText.selectionStart;
   const end = elements.layerText.selectionEnd;
   if (start !== end) richTextSelection = { layerId: layer.id, start, end };
@@ -1250,6 +1274,19 @@ function updateRichTextStatus() {
   elements.richTextStatus.textContent = count
     ? `已选择 ${count} 个字符：字体、字重、字号和颜色将只应用于选中部分。`
     : "选中文字后，字体、字重、字号和颜色只作用于选中部分。";
+  elements.clearRichTextSelectionButton.classList.toggle("hidden", !count);
+}
+
+function clearRichTextSelection() {
+  const layer = getSelectedLayer();
+  if (layer?.type === "text") {
+    const end = elements.layerText.value.length;
+    elements.layerText.setSelectionRange(end, end);
+    richTextSelection = { layerId: layer.id, start: end, end };
+  } else {
+    richTextSelection = null;
+  }
+  updateRichTextStatus();
 }
 
 function addTextLayer() {
@@ -1346,6 +1383,22 @@ function updateBackground(color) {
 
 function handlePointerDown(event) {
   const point = pointerToCanvas(event);
+  const selectedLayer = getSelectedLayer();
+  const resizeHandle = getResizeHandleAtPoint(point);
+  if (selectedLayer && resizeHandle && !selectedLayer.locked) {
+    const box = hitBoxes.find((entry) => entry.layerId === selectedLayer.id);
+    resizeState = {
+      pointerId: event.pointerId,
+      handle: resizeHandle,
+      startPoint: point,
+      startBox: { x: box.x, y: box.y, width: box.width, height: box.height },
+      startLayer: structuredClone(selectedLayer),
+      moved: false,
+    };
+    elements.canvas.setPointerCapture?.(event.pointerId);
+    elements.canvas.classList.add("resizing");
+    return;
+  }
   const target = [...hitBoxes].reverse().find((box) => pointInBox(point, box));
 
   if (!target) {
@@ -1355,6 +1408,7 @@ function handlePointerDown(event) {
   }
 
   selectedLayerId = target.layerId;
+  clearRichTextSelection();
   const layer = getSelectedLayer();
   if (layer.locked) {
     dragState = null;
@@ -1380,7 +1434,16 @@ function handlePointerDown(event) {
 }
 
 function handlePointerMove(event) {
-  if (!dragState || event.pointerId !== dragState.pointerId) return;
+  if (resizeState && event.pointerId === resizeState.pointerId) {
+    updateResize(event);
+    return;
+  }
+  if (!dragState || event.pointerId !== dragState.pointerId) {
+    const handle = getResizeHandleAtPoint(pointerToCanvas(event));
+    if (handle) elements.canvas.dataset.resizeHandle = handle;
+    else delete elements.canvas.dataset.resizeHandle;
+    return;
+  }
   const layer = getSelectedLayer();
   if (!layer) return;
   if (layer.locked) return;
@@ -1413,6 +1476,15 @@ function handlePointerMove(event) {
 }
 
 function handlePointerUp(event) {
+  if (resizeState && event.pointerId === resizeState.pointerId) {
+    elements.canvas.releasePointerCapture?.(event.pointerId);
+    elements.canvas.classList.remove("resizing");
+    if (resizeState.moved) commitHistory();
+    resizeState = null;
+    delete elements.canvas.dataset.resizeHandle;
+    renderAll();
+    return;
+  }
   if (!dragState || event.pointerId !== dragState.pointerId) return;
   elements.canvas.releasePointerCapture?.(event.pointerId);
   elements.canvas.classList.remove("dragging");
@@ -1422,6 +1494,49 @@ function handlePointerUp(event) {
   delete elements.canvas.dataset.guideX;
   delete elements.canvas.dataset.guideY;
   renderAll();
+}
+
+function updateResize(event) {
+  const point = pointerToCanvas(event);
+  const { startBox, startLayer, handle } = resizeState;
+  const anchors = {
+    nw: { x: startBox.x + startBox.width, y: startBox.y + startBox.height },
+    ne: { x: startBox.x, y: startBox.y + startBox.height },
+    sw: { x: startBox.x + startBox.width, y: startBox.y },
+    se: { x: startBox.x, y: startBox.y },
+  };
+  const anchor = anchors[handle];
+  const width = Math.max(24, handle.includes("e") ? point.x - anchor.x : anchor.x - point.x);
+  const height = Math.max(24, handle.includes("s") ? point.y - anchor.y : anchor.y - point.y);
+  const ratio = clamp(Math.max(width / startBox.width, height / startBox.height), 0.1, 12);
+  const nextWidth = startBox.width * ratio;
+  const nextHeight = startBox.height * ratio;
+  const nextBox = {
+    x: handle.includes("e") ? anchor.x : anchor.x - nextWidth,
+    y: handle.includes("s") ? anchor.y : anchor.y - nextHeight,
+    width: nextWidth,
+    height: nextHeight,
+  };
+  const layer = getSelectedLayer();
+  if (!layer) return;
+  const offsetX = startLayer.x - startBox.x;
+  const offsetY = startLayer.y - startBox.y;
+  layer.x = nextBox.x + offsetX * ratio;
+  layer.y = nextBox.y + offsetY * ratio;
+  if (layer.type === "text") {
+    layer.fontSize = clamp((startLayer.fontSize ?? 48) * ratio, 8, 1200);
+    if (startLayer.maxWidth) layer.maxWidth = clamp(startLayer.maxWidth * ratio, 20, 4000);
+  } else if (layer.type === "seal") {
+    layer.size = clamp((startLayer.size ?? 68) * ratio, 20, 600);
+    layer.fontSize = clamp((startLayer.fontSize ?? 42) * ratio, 8, 400);
+  } else if (layer.type === "line") {
+    layer.width = clamp((startLayer.width ?? 100) * ratio, 1, 4000);
+    layer.thickness = clamp((startLayer.thickness ?? 4) * ratio, 1, 100);
+  }
+  resizeState.moved = resizeState.moved || Math.abs(ratio - 1) > 0.001;
+  touchState();
+  drawCanvas();
+  renderEditor();
 }
 
 function handleCanvasDoubleClick(event) {

@@ -199,7 +199,10 @@
                 <span>文字内容</span>
                 <textarea id="layerText" rows="3"></textarea>
               </label>
-              <p class="field-note text-only" id="richTextStatus">选中文字后，字体、字重、字号和颜色只作用于选中部分。</p>
+              <div class="rich-text-status-row text-only">
+                <p class="field-note" id="richTextStatus">选中文字后，字体、字重、字号和颜色只作用于选中部分。</p>
+                <button class="button ghost compact hidden" id="clearRichTextSelectionButton" type="button">整层编辑</button>
+              </div>
 
               <div class="field-grid two-columns textual-only">
                 <label class="field-block">

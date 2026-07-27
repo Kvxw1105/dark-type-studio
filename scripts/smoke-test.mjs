@@ -41,6 +41,9 @@ assert(html.includes('data-mobile-view="canvas"'), "缺少移动端工作区切�
 assert(html.includes('id="canvasPreset"'), "缺少社媒画布尺寸预设");
 assert(js.includes("drawAlignmentGuides"), "缺少中心对齐参考线");
 assert(js.includes("navigator.vibrate"), "缺少吸附触觉反馈");
+assert(js.includes("clearRichTextSelection"), "缺少整层文字编辑模式切换");
+assert(js.includes("selectionCorners"), "缺少画布缩放角点");
+assert(js.includes("updateResize"), "缺少画布缩放处理");
 assert(js.includes("roundedRectPath"), "缺少自适应胶囊印章渲染");
 assert(html.includes('id="saveTemplateButton"'), "缺少保存为我的模板入口");
 assert(js.includes("saveAsCustomTemplate"), "缺少自定义模板保存逻辑");
