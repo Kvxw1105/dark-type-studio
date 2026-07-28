@@ -516,13 +516,13 @@ input[type="range"] {
   min-width: 0;
   min-height: 0;
   background:
-    linear-gradient(45deg, #0d0f12 25%, transparent 25%),
-    linear-gradient(-45deg, #0d0f12 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #0d0f12 75%),
-    linear-gradient(-45deg, transparent 75%, #0d0f12 75%),
-    #090a0d;
-  background-size: 22px 22px;
-  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+    linear-gradient(45deg, #1a1d23 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1d23 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1d23 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1d23 75%),
+    #15181d;
+  background-size: 24px 24px;
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
 }
 
 .stage-toolbar,
@@ -599,8 +599,26 @@ input[type="range"] {
   position: relative;
   width: max-content;
   margin: auto;
-  box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  border: 1px solid #525a66;
+  outline: 10px solid #252a32;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(255, 255, 255, 0.07);
   transform-origin: center center;
+}
+
+.canvas-dimensions {
+  position: absolute;
+  top: -35px;
+  left: -1px;
+  padding: 4px 8px;
+  border: 1px solid #434b57;
+  border-radius: 4px;
+  background: #252a32;
+  color: #c7ced8;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .canvas-shell:has(#designCanvas:focus-visible) {
@@ -632,6 +650,24 @@ input[type="range"] {
   justify-content: space-between;
   gap: 8px;
 }
+
+.advanced-controls {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.advanced-controls summary {
+  color: #aab2bd;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 750;
+  list-style: none;
+}
+
+.advanced-controls summary::-webkit-details-marker { display: none; }
+.advanced-controls summary::after { content: "+"; float: right; color: var(--muted); font-size: 14px; line-height: 10px; }
+.advanced-controls[open] summary::after { content: "−"; }
+.advanced-controls-body { display: grid; gap: 12px; padding-top: 12px; }
 
 .canvas-inline-editor {
   position: absolute;

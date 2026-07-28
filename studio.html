@@ -156,6 +156,7 @@
           <div class="stage" id="stage">
             <div class="canvas-shell" id="canvasShell">
               <canvas id="designCanvas" width="1080" height="1080" tabindex="0" aria-label="设计画布"></canvas>
+              <span class="canvas-dimensions" id="canvasDimensions">1080 × 1080</span>
             </div>
           </div>
 
@@ -239,11 +240,6 @@
                 </label>
               </div>
 
-              <label class="field-block">
-                <span>旋转角度</span>
-                <input id="layerRotation" type="number" min="-360" max="360" step="1" />
-              </label>
-
               <div class="field-grid two-columns text-only">
                 <label class="field-block">
                   <span>字号</span>
@@ -252,17 +248,6 @@
                 <label class="field-block">
                   <span>最大宽度</span>
                   <input id="maxWidth" type="number" min="20" max="4000" step="1" />
-                </label>
-              </div>
-
-              <div class="field-grid two-columns text-only">
-                <label class="field-block">
-                  <span>字间距</span>
-                  <input id="letterSpacing" type="number" min="-30" max="100" step="1" />
-                </label>
-                <label class="field-block">
-                  <span>行高</span>
-                  <input id="lineHeight" type="number" min="0.5" max="3" step="0.05" />
                 </label>
               </div>
 
@@ -281,7 +266,26 @@
                 </label>
               </div>
 
-              <div class="field-grid two-columns line-only">
+              <details class="advanced-controls">
+                <summary>更多排版与效果</summary>
+                <div class="advanced-controls-body">
+                  <label class="field-block">
+                    <span>旋转角度</span>
+                    <input id="layerRotation" type="number" min="-360" max="360" step="1" />
+                  </label>
+
+                  <div class="field-grid two-columns text-only">
+                    <label class="field-block">
+                      <span>字间距</span>
+                      <input id="letterSpacing" type="number" min="-30" max="100" step="1" />
+                    </label>
+                    <label class="field-block">
+                      <span>行高</span>
+                      <input id="lineHeight" type="number" min="0.5" max="3" step="0.05" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid two-columns line-only">
                 <label class="field-block">
                   <span>线条宽度</span>
                   <input id="lineWidth" type="number" min="1" max="4000" step="1" />
@@ -290,9 +294,9 @@
                   <span>线条粗细</span>
                   <input id="lineThickness" type="number" min="1" max="100" step="1" />
                 </label>
-              </div>
+                  </div>
 
-              <div class="field-grid two-columns seal-only">
+                  <div class="field-grid two-columns seal-only">
                 <label class="field-block">
                   <span>印章最小高度</span>
                   <input id="sealSize" type="number" min="20" max="600" step="1" />
@@ -301,15 +305,15 @@
                   <span>印章字号</span>
                   <input id="sealFontSize" type="number" min="8" max="400" step="1" />
                 </label>
-              </div>
-              <p class="field-note seal-only">单字保持圆形，多字会根据内容自动展宽为胶囊形。</p>
+                  </div>
+                  <p class="field-note seal-only">单字保持圆形，多字会根据内容自动展宽为胶囊形。</p>
 
-              <label class="field-block seal-only">
+                  <label class="field-block seal-only">
                 <span>印章底色</span>
                 <input id="sealBackground" type="color" />
-              </label>
+                  </label>
 
-              <div class="field-grid two-columns text-only">
+                  <div class="field-grid two-columns text-only">
                 <label class="field-block">
                   <span>描边颜色</span>
                   <input id="strokeColor" type="color" />
@@ -318,9 +322,9 @@
                   <span>描边宽度</span>
                   <input id="strokeWidth" type="number" min="0" max="30" step="0.5" />
                 </label>
-              </div>
+                  </div>
 
-              <div class="field-grid two-columns text-only">
+                  <div class="field-grid two-columns text-only">
                 <label class="field-block">
                   <span>阴影颜色</span>
                   <input id="shadowColor" type="color" />
@@ -329,7 +333,9 @@
                   <span>阴影模糊</span>
                   <input id="shadowBlur" type="number" min="0" max="100" step="1" />
                 </label>
-              </div>
+                  </div>
+                </div>
+              </details>
 
               <label class="field-block">
                 <span>透明度 <output id="opacityLabel">100%</output></span>

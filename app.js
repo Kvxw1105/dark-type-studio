@@ -262,6 +262,7 @@ function lineLayer(overrides = {}) {
 const elements = {
   canvas: document.querySelector("#designCanvas"),
   canvasShell: document.querySelector("#canvasShell"),
+  canvasDimensions: document.querySelector("#canvasDimensions"),
   stage: document.querySelector("#stage"),
   templateGrid: document.querySelector("#templateGrid"),
   customTemplatesSection: document.querySelector("#customTemplatesSection"),
@@ -349,6 +350,7 @@ function init() {
     loadCustomTemplates();
     restoreSavedProject();
   }
+  fitLayersToCanvas();
   commitHistory();
   resizeCanvas();
   renderAll();
@@ -623,6 +625,7 @@ function switchTemplate(templateId) {
   if (!TEMPLATE_DEFINITIONS[templateId] || templateId === state.templateId) return;
   state = cloneTemplate(templateId);
   selectedLayerId = state.layers.find((layer) => layer.type === "text")?.id ?? state.layers[0]?.id ?? null;
+  fitLayersToCanvas();
   touchState();
   resizeCanvas();
   commitHistory(true);
@@ -642,6 +645,7 @@ function resetCurrentTemplate() {
   if (!accepted) return;
   state = customTemplate ? structuredClone(customTemplate.project) : cloneTemplate(state.templateId);
   selectedLayerId = state.layers.find((layer) => layer.type === "text")?.id ?? state.layers[0]?.id ?? null;
+  fitLayersToCanvas();
   touchState();
   resizeCanvas();
   commitHistory(true);
@@ -656,6 +660,8 @@ function resizeCanvas() {
   elements.canvas.style.height = `${state.height}px`;
   elements.currentTemplateName.textContent = state.name;
   elements.canvasSizeLabel.textContent = `${state.width} × ${state.height}`;
+  elements.canvasDimensions.textContent = `${state.width} × ${state.height}`;
+  elements.canvasShell.dataset.dimensions = `${state.width} × ${state.height}`;
   elements.backgroundColor.value = state.background;
   elements.backgroundHex.value = state.background;
   const presetValue = `${state.width}x${state.height}`;
@@ -669,7 +675,7 @@ function applyCanvasSize(width, height) {
   if (width === state.width && height === state.height) return;
   const scaleX = width / state.width;
   const scaleY = height / state.height;
-  const sizeScale = scaleX;
+  const sizeScale = Math.min(scaleX, scaleY);
   for (const layer of state.layers) {
     layer.x *= scaleX;
     layer.y *= scaleY;
@@ -686,13 +692,78 @@ function applyCanvasSize(width, height) {
   }
   state.width = width;
   state.height = height;
+  fitLayersToCanvas();
   touchState();
   resizeCanvas();
   commitHistory();
   renderAll();
   zoomMode = "fit";
   requestAnimationFrame(fitCanvasToStage);
-  showToast(`画布已调整为 ${width} × ${height}`);
+  showToast(`已智能适配为 ${width} × ${height}`);
+}
+
+function fitLayersToCanvas() {
+  const inset = Math.max(28, Math.min(state.width, state.height) * 0.05);
+  for (const layer of state.layers) {
+    let bounds = measureLayerBounds(layer);
+    if (!bounds) continue;
+    const availableWidth = state.width - inset * 2;
+    const availableHeight = state.height - inset * 2;
+    const scale = Math.min(1, availableWidth / bounds.width, availableHeight / bounds.height);
+    if (scale < 0.999) {
+      scaleLayerAppearance(layer, scale);
+      bounds = measureLayerBounds(layer);
+    }
+    if (!bounds) continue;
+    if (bounds.x < inset) layer.x += inset - bounds.x;
+    if (bounds.x + bounds.width > state.width - inset) layer.x -= bounds.x + bounds.width - (state.width - inset);
+    bounds = measureLayerBounds(layer);
+    if (!bounds) continue;
+    if (bounds.y < inset) layer.y += inset - bounds.y;
+    if (bounds.y + bounds.height > state.height - inset) layer.y -= bounds.y + bounds.height - (state.height - inset);
+  }
+  resolveTextOverlaps(inset);
+}
+
+function resolveTextOverlaps(inset) {
+  const textLayers = state.layers.filter((layer) => layer.type === "text" && layer.visible);
+  const largeText = [...textLayers].sort((a, b) => (b.fontSize ?? 0) - (a.fontSize ?? 0));
+  for (const layer of largeText) {
+    let bounds = measureLayerBounds(layer);
+    for (const smaller of textLayers) {
+      if (smaller.id === layer.id || (smaller.fontSize ?? 0) * 1.4 >= (layer.fontSize ?? 0)) continue;
+      const smallerBounds = measureLayerBounds(smaller);
+      if (!bounds || !smallerBounds || !boxesOverlap(bounds, smallerBounds)) continue;
+      const targetTop = smallerBounds.y + smallerBounds.height + Math.max(16, inset * 0.35);
+      if (targetTop + bounds.height > state.height - inset) continue;
+      layer.y += targetTop - bounds.y;
+      bounds = measureLayerBounds(layer);
+    }
+  }
+}
+
+function boxesOverlap(a, b) {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function measureLayerBounds(layer) {
+  const probe = document.createElement("canvas");
+  probe.width = state.width;
+  probe.height = state.height;
+  return drawLayer(probe.getContext("2d"), layer);
+}
+
+function scaleLayerAppearance(layer, scale) {
+  if (layer.fontSize) layer.fontSize *= scale;
+  if (layer.maxWidth) layer.maxWidth *= scale;
+  if (layer.size) layer.size *= scale;
+  if (layer.width) layer.width *= scale;
+  if (layer.thickness) layer.thickness *= scale;
+  if (layer.strokeWidth) layer.strokeWidth *= scale;
+  if (layer.shadowBlur) layer.shadowBlur *= scale;
+  for (const run of layer.textRuns ?? []) {
+    if (run.style?.fontSize) run.style.fontSize *= scale;
+  }
 }
 
 function renderAll() {
@@ -1472,7 +1543,6 @@ function handlePointerMove(event) {
   dragState.moved = dragState.moved || Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5;
   touchState();
   drawCanvas();
-  renderEditor();
 }
 
 function handlePointerUp(event) {
@@ -1536,7 +1606,6 @@ function updateResize(event) {
   resizeState.moved = resizeState.moved || Math.abs(ratio - 1) > 0.001;
   touchState();
   drawCanvas();
-  renderEditor();
 }
 
 function handleCanvasDoubleClick(event) {
@@ -1762,6 +1831,7 @@ async function importProject(event) {
 
 function applyProject(project) {
   state = DarkTypeStudioCore.normalizeProject(project);
+  fitLayersToCanvas();
   hasUnsavedChanges = false;
   selectedLayerId = state.layers[0]?.id ?? null;
   resizeCanvas();
