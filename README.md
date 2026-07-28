@@ -4,7 +4,7 @@
 
 ## 当前版本
 
-`v1.6.0`
+`v1.7.0`
 
 当前内置两套模板：
 
@@ -76,7 +76,7 @@ Agent CLI 和 MCP Server 需要 Node.js 22+。
 
 ## Agent / MCP
 
-`v1.6.0` 将项目操作抽为共享协议，网页、CLI 和 MCP 共用同一套项目校验、revision 与图层操作。
+`v1.7.0` 延续共享协议：网页、CLI 和 MCP 共用同一套项目校验、revision 与图层操作；首页升级为金石碑拓与朱印唤醒的东方数字案头，不改变编辑器工作流。
 
 ```bash
 npm run dark-type -- capabilities

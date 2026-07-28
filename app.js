@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.6.0";
+const APP_VERSION = "1.7.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
