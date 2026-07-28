@@ -1,18 +1,20 @@
 :root {
   color-scheme: dark;
-  --bg: #08090b;
-  --panel: #101216;
-  --panel-2: #15181d;
-  --panel-3: #1c2026;
-  --border: #292e36;
-  --border-soft: #22262d;
-  --text: #f5f7fa;
-  --muted: #8f98a5;
-  --red: #e91920;
-  --red-deep: #b10f16;
-  --focus: rgba(233, 25, 32, 0.24);
+  --bg: #0b0e0d;
+  --panel: #121614;
+  --panel-2: #191d1a;
+  --panel-3: #232824;
+  --border: #353b37;
+  --border-soft: #282e2a;
+  --text: #f1eee5;
+  --muted: #949b93;
+  --red: #c73839;
+  --red-deep: #8f2528;
+  --mineral: #6f8b7c;
+  --paper: #e7e2d6;
+  --focus: rgba(199, 56, 57, 0.24);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-family: "PingFang SC", "Microsoft YaHei", Inter, system-ui, -apple-system, sans-serif;
 }
 
 * {
@@ -37,7 +39,11 @@ body {
   min-width: 1180px;
   min-height: 100%;
   margin: 0;
-  background: var(--bg);
+  background:
+    linear-gradient(90deg, rgba(111, 139, 124, 0.025) 1px, transparent 1px),
+    linear-gradient(rgba(111, 139, 124, 0.02) 1px, transparent 1px),
+    var(--bg);
+  background-size: 26px 26px;
   color: var(--text);
 }
 
@@ -56,16 +62,13 @@ body {
   overflow: hidden;
 }
 
-body[data-theme="light"] .topbar { background: rgba(255, 255, 255, 0.94); }
+body[data-theme="light"] .topbar { background: rgba(244, 240, 231, 0.95); }
 body[data-theme="light"] .stage-column {
   background:
-    linear-gradient(45deg, #e4e7eb 25%, transparent 25%),
-    linear-gradient(-45deg, #e4e7eb 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e4e7eb 75%),
-    linear-gradient(-45deg, transparent 75%, #e4e7eb 75%),
-    #f2f4f6;
-  background-size: 22px 22px;
-  background-position: 0 0, 0 11px, 11px -11px, -11px 0;
+    linear-gradient(90deg, rgba(105, 130, 117, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(105, 130, 117, 0.06) 1px, transparent 1px),
+    #e8e4da;
+  background-size: 24px 24px;
 }
 body[data-theme="light"] input:not([type="color"]),
 body[data-theme="light"] select,
@@ -124,15 +127,15 @@ body[data-theme="light"] .button.danger { color: #b10f16; }
 
 body[data-theme="light"] {
   color-scheme: light;
-  --bg: #f1f3f6;
-  --panel: #ffffff;
-  --panel-2: #f7f8fa;
-  --panel-3: #eceff3;
-  --border: #d8dde4;
-  --border-soft: #e5e8ed;
-  --text: #1a1d22;
-  --muted: #66707c;
-  --focus: rgba(185, 18, 24, 0.18);
+  --bg: #e5e1d7;
+  --panel: #f5f1e8;
+  --panel-2: #ece8de;
+  --panel-3: #e1ddd3;
+  --border: #c7c4ba;
+  --border-soft: #d7d3c9;
+  --text: #20231f;
+  --muted: #687169;
+  --focus: rgba(143, 37, 40, 0.18);
   --shadow: 0 20px 60px rgba(20, 26, 34, 0.16);
 }
 
@@ -142,7 +145,7 @@ body[data-theme="light"] {
   bottom: -1px;
   left: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(233, 25, 32, 0.7) 35%, rgba(233, 25, 32, 0.2) 68%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(199, 56, 57, 0.75) 28%, rgba(111, 139, 124, 0.55) 72%, transparent);
   content: "";
   pointer-events: none;
 }
@@ -159,13 +162,13 @@ body[data-theme="light"] {
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 2px;
   background: var(--red);
-  color: #fff;
-  font-family: "STKaiti", "KaiTi", serif;
+  color: #fff8ea;
+  font-family: "STSong", "Songti SC", serif;
   font-size: 22px;
   font-weight: 900;
-  box-shadow: 0 0 0 5px rgba(233, 25, 32, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(255, 245, 225, 0.16), 3px 3px 0 rgba(143, 37, 40, 0.26);
 }
 
 .brand-name {
@@ -198,7 +201,10 @@ body[data-theme="light"] {
 .panel {
   min-height: 0;
   overflow-y: auto;
-  background: var(--panel);
+  background:
+    linear-gradient(90deg, rgba(111, 139, 124, 0.04) 1px, transparent 1px),
+    var(--panel);
+  background-size: 24px 24px;
   scrollbar-color: #343a43 transparent;
   scrollbar-width: thin;
   box-shadow: inset 0 1px rgba(255, 255, 255, 0.02);
@@ -213,12 +219,24 @@ body[data-theme="light"] {
 }
 
 .panel-section {
+  position: relative;
   padding: 18px;
   border-bottom: 1px solid var(--border-soft);
   transition: background 180ms ease;
 }
 
-.panel-section:hover { background: rgba(255, 255, 255, 0.012); }
+.panel-section::before {
+  position: absolute;
+  top: 19px;
+  left: 0;
+  width: 2px;
+  height: 22px;
+  background: var(--red);
+  content: "";
+  opacity: 0.72;
+}
+
+.panel-section:hover { background: rgba(231, 226, 214, 0.018); }
 
 .section-heading-row {
   display: flex;
@@ -230,7 +248,7 @@ body[data-theme="light"] {
 
 .section-kicker {
   margin-bottom: 4px;
-  color: #69727e;
+  color: var(--mineral);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.16em;
@@ -238,7 +256,8 @@ body[data-theme="light"] {
 
 h2 {
   margin: 0;
-  font-size: 14px;
+  font-family: "STSong", "Songti SC", serif;
+  font-size: 15px;
   line-height: 1.2;
 }
 
@@ -255,7 +274,7 @@ h2 {
   width: 100%;
   padding: 9px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 3px;
   background: var(--panel-2);
   text-align: left;
   cursor: pointer;
@@ -263,14 +282,14 @@ h2 {
 }
 
 .template-card:hover {
-  border-color: #444c57;
-  transform: translateY(-1px);
+  border-color: var(--mineral);
+  transform: translateX(2px);
 }
 
 .template-card.active {
   border-color: var(--red);
-  background: rgba(233, 25, 32, 0.08);
-  box-shadow: 0 0 0 3px rgba(233, 25, 32, 0.08);
+  background: rgba(199, 56, 57, 0.1);
+  box-shadow: inset 3px 0 var(--red);
 }
 
 .template-preview {
@@ -281,7 +300,7 @@ h2 {
   overflow: hidden;
   background: #000;
   color: #fff;
-  border: 1px solid #252525;
+  border: 1px solid #3b423d;
 }
 
 .square-preview {
@@ -891,6 +910,113 @@ input[type="range"] {
   pointer-events: auto;
   transform: translate(-50%, 0);
 }
+
+/* 金石案头：保持编辑器的信息密度，把东方材料感留在外框与状态层。 */
+.template-card,
+input[type="text"],
+input[type="number"],
+select,
+textarea,
+input[type="color"],
+.button,
+.icon-button,
+.layer-item,
+.layer-icon,
+.empty-state,
+.toast,
+.custom-template-button,
+.custom-template-delete,
+.canvas-dimensions,
+#statusMessage {
+  border-radius: 3px;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea,
+input[type="color"] { background: #0e1210; }
+
+.button.primary {
+  color: #fff8ea;
+  box-shadow: 3px 3px 0 rgba(143, 37, 40, 0.45);
+}
+
+.button.primary:hover { background: #df4a46; }
+.button.ghost { color: #dfe0d7; }
+.button.ghost:hover:not(:disabled),
+.icon-button:hover { border-color: var(--mineral); }
+
+.stage-column {
+  background:
+    linear-gradient(90deg, rgba(111, 139, 124, 0.09) 1px, transparent 1px),
+    linear-gradient(rgba(111, 139, 124, 0.065) 1px, transparent 1px),
+    #171b19;
+  background-size: 24px 24px;
+}
+
+.stage-toolbar,
+.statusbar {
+  background: rgba(18, 22, 20, 0.94);
+  backdrop-filter: blur(10px);
+}
+
+.stage-title-block small {
+  border-radius: 2px;
+  background: rgba(111, 139, 124, 0.1);
+  color: #b8c5b9;
+}
+
+.canvas-shell {
+  border-color: #6f7d73;
+  outline: 9px solid #2a302b;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(231, 226, 214, 0.08), -8px 8px 0 rgba(143, 37, 40, 0.18);
+}
+
+.canvas-dimensions {
+  border-color: #566259;
+  background: #252b26;
+  color: #d8d5ca;
+}
+
+.advanced-controls summary { color: #b9c1b8; }
+
+.layer-item {
+  border-radius: 3px;
+  background: #101411;
+}
+
+.layer-item:hover { border-color: var(--mineral); }
+
+.layer-item.active {
+  background: rgba(199, 56, 57, 0.08);
+  box-shadow: inset 3px 0 var(--red);
+}
+
+.layer-icon {
+  border-radius: 2px;
+  background: #202620;
+  color: #bcc8bc;
+  font-family: "STSong", "Songti SC", serif;
+}
+
+.empty-state { color: #889489; }
+
+.toast {
+  border-color: #59655d;
+  background: rgba(27, 32, 28, 0.98);
+  color: #f0ece2;
+}
+
+body[data-theme="light"] .stage-toolbar,
+body[data-theme="light"] .statusbar { background: rgba(244, 240, 231, 0.93); }
+body[data-theme="light"] .layer-item { background: #f1ede3; }
+body[data-theme="light"] .layer-icon { background: #e0ddd2; color: #52645a; }
+body[data-theme="light"] .template-card,
+body[data-theme="light"] .button.ghost,
+body[data-theme="light"] .icon-button { background: #ece8de; }
+body[data-theme="light"] .button.ghost { color: #39443d; }
+body[data-theme="light"] .layer-item.active { background: rgba(143, 37, 40, 0.07); }
 
 .toast-action {
   margin-left: 12px;
