@@ -1018,6 +1018,36 @@ body[data-theme="light"] .icon-button { background: #ece8de; }
 body[data-theme="light"] .button.ghost { color: #39443d; }
 body[data-theme="light"] .layer-item.active { background: rgba(143, 37, 40, 0.07); }
 
+/* 现代字标与工具图标：图形负责识别，文字负责明确动作。 */
+.brand-mark { position: relative; border-radius: 2px; font-size: 0; }
+.brand-mark .mark-bar { position: absolute; display: block; width: 5px; height: 24px; background: #fff8ea; transform: skewY(-28deg); }
+.brand-mark .mark-bar-a { top: 7px; left: 12px; }
+.brand-mark .mark-bar-b { right: 12px; bottom: 7px; height: 19px; background: rgba(255,248,234,.62); transform: skewY(-28deg) rotate(90deg); }
+.brand-name, .section-heading-row h2, .stage-title-block, .template-meta b, .layer-name { font-family: "Arial Narrow", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.section-heading-row h2 { font-weight: 800; letter-spacing: .02em; }
+.button::before, .icon-button::before { display: inline-block; margin-right: 7px; font-size: 13px; line-height: 1; }
+#undoButton::before { content: "↶"; }
+#redoButton::before { content: "↷"; }
+#saveButton::before { content: "▣"; }
+#loadButton::before { content: "↙"; }
+#exportPngButton::before, #exportJpgButton::before, #exportWebpButton::before { content: "↓"; }
+#saveTemplateButton::before { content: "✣"; }
+#downloadProjectButton::before { content: "↓"; }
+#resetTemplateButton::before { content: "↺"; }
+#fitButton::before { content: "⌗"; }
+#duplicateLayerButton::before { content: "⧉"; }
+#moveUpButton::before { content: "↑"; }
+#deleteLayerButton::before { content: "×"; }
+#centerHorizontalButton::before { content: "↔"; }
+#centerVerticalButton::before { content: "↕"; }
+.plus-button::before { content: "＋"; margin: 0; }
+.plus-button { font-size: 0; }
+.plus-button::before { font-size: 18px; }
+.zoom-control .icon-button::before { margin: 0; }
+#zoomOutButton::before { content: "−"; }
+#zoomInButton::before { content: "＋"; }
+.layer-action-button { font-family: "Arial Narrow", "Noto Sans SC", sans-serif; }
+
 .toast-action {
   margin-left: 12px;
   padding: 3px 8px;
