@@ -662,7 +662,9 @@ input[type="range"] {
 #designCanvas[data-resize-handle="sw"] { cursor: nesw-resize; }
 
 #designCanvas[data-resize-handle="n"],
-#designCanvas[data-resize-handle="s"] { cursor: ew-resize; }
+#designCanvas[data-resize-handle="s"],
+#designCanvas[data-resize-handle="w"],
+#designCanvas[data-resize-handle="e"] { cursor: ew-resize; }
 
 #designCanvas.resizing { cursor: nwse-resize; }
 

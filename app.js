@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.10.0";
+const APP_VERSION = "1.11.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
@@ -1158,6 +1158,18 @@ function drawSelection(ctx, box) {
       ctx.strokeStyle = "#28a9ff";
       ctx.strokeRect(x - edgeWidth / 2, y - edgeHeight / 2, edgeWidth, edgeHeight);
     }
+    const sideWidth = 8;
+    const sideHeight = 32;
+    const sideHandles = [
+      [box.x, box.y + box.height / 2],
+      [box.x + box.width, box.y + box.height / 2],
+    ];
+    for (const [x, y] of sideHandles) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x - sideWidth / 2, y - sideHeight / 2, sideWidth, sideHeight);
+      ctx.strokeStyle = "#28a9ff";
+      ctx.strokeRect(x - sideWidth / 2, y - sideHeight / 2, sideWidth, sideHeight);
+    }
   }
   ctx.restore();
 }
@@ -1170,6 +1182,8 @@ function selectionCorners(box) {
     { id: "se", x: box.x + box.width, y: box.y + box.height },
     { id: "n", x: box.x + box.width / 2, y: box.y },
     { id: "s", x: box.x + box.width / 2, y: box.y + box.height },
+    { id: "w", x: box.x, y: box.y + box.height / 2 },
+    { id: "e", x: box.x + box.width, y: box.y + box.height / 2 },
   ];
 }
 
@@ -1622,9 +1636,9 @@ function updateResize(event) {
   const layer = getSelectedLayer();
   if (!layer) return;
 
-  if (handle === "n" || handle === "s") {
+  if (["n", "s", "w", "e"].includes(handle)) {
     const horizontalDelta = point.x - resizeState.startPoint.x;
-    const widthMultiplier = handle === "n" || handle === "s" ? 2 : 1;
+    const widthMultiplier = handle === "n" || handle === "s" ? 2 : handle === "w" ? -1 : 1;
     const startWidth = Math.max(24, startBox.width);
     if (layer.type === "text") {
       layer.horizontalFit = true;
