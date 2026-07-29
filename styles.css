@@ -14,6 +14,10 @@
   --paper: #e7e2d6;
   --focus: rgba(199, 56, 57, 0.24);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  --motion-instant: 80ms;
+  --motion-fast: 140ms;
+  --motion-normal: 220ms;
+  --ease-standard: cubic-bezier(.2, .7, .2, 1);
   font-family: "PingFang SC", "Microsoft YaHei", Inter, system-ui, -apple-system, sans-serif;
 }
 
@@ -56,6 +60,12 @@ textarea {
 
 button {
   color: inherit;
+}
+
+button:active:not(:disabled),
+.template-card:active,
+.layer-item:active {
+  transform: translateY(1px);
 }
 
 body {
@@ -470,6 +480,16 @@ input[type="range"] {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+.button.is-processing {
+  min-width: max-content;
+  opacity: .82;
+  background-image: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+  background-size: 180% 100%;
+  animation: button-processing 1.1s linear infinite;
+}
+
+@keyframes button-processing { to { background-position: -180% 0; } }
 
 .button.primary {
   background: var(--red);
@@ -917,6 +937,32 @@ input[type="range"] {
   transform: translate(-50%, 0);
 }
 
+.feedback-dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.feedback-dialog::backdrop { background: rgba(8, 11, 10, .48); backdrop-filter: blur(2px); }
+.feedback-dialog form { display: grid; gap: 14px; padding: 18px; }
+.feedback-dialog-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--border-soft); }
+.feedback-dialog-header span { display: block; color: var(--mineral); font-size: 9px; font-weight: 800; letter-spacing: .14em; }
+.feedback-dialog-header h2 { margin: 4px 0 0; font-size: 17px; }
+.feedback-option { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 48px; cursor: pointer; }
+.feedback-option b, .feedback-option small { display: block; }
+.feedback-option b { font-size: 12px; }
+.feedback-option small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.feedback-option input { width: 40px; height: 22px; accent-color: var(--red); }
+
+html.feedback-pulse .statusbar { box-shadow: inset 0 2px var(--mineral); }
+html[data-feedback-event="error"].feedback-pulse .toast { animation: feedback-error var(--motion-normal) var(--ease-standard); }
+html[data-feedback-event="success"].feedback-pulse #statusMessage { border-color: var(--mineral); color: #c5dbc9; }
+@keyframes feedback-error { 0%, 100% { transform: translate(-50%, 0); } 35% { transform: translate(calc(-50% - 4px), 0); } 70% { transform: translate(calc(-50% + 4px), 0); } }
+
 /* 金石案头：保持编辑器的信息密度，把东方材料感留在外框与状态层。 */
 .template-card,
 input[type="text"],
@@ -1046,6 +1092,7 @@ body[data-theme="light"] .layer-item.active { background: rgba(143, 37, 40, 0.07
 #deleteLayerButton::before { content: "×"; }
 #centerHorizontalButton::before { content: "↔"; }
 #centerVerticalButton::before { content: "↕"; }
+#feedbackSettingsButton::before { content: "◌"; }
 .plus-button::before { content: "＋"; margin: 0; }
 .plus-button { font-size: 0; }
 .plus-button::before { font-size: 18px; }
@@ -1096,6 +1143,12 @@ body[data-theme="light"] .layer-item.active { background: rgba(143, 37, 40, 0.07
   }
 
   .topbar-actions .theme-toggle {
+    display: inline-flex !important;
+    min-width: 40px;
+    padding: 0 9px;
+  }
+
+  #feedbackSettingsButton {
     display: inline-flex !important;
     min-width: 40px;
     padding: 0 9px;
@@ -1209,4 +1262,11 @@ body[data-theme="light"] .layer-item.active { background: rgba(143, 37, 40, 0.07
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+html[data-motion-mode="reduce"] *,
+html[data-motion-mode="reduce"] *::before,
+html[data-motion-mode="reduce"] *::after {
+  animation-duration: .01ms !important;
+  transition-duration: .01ms !important;
 }

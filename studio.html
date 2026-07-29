@@ -27,6 +27,7 @@
           <button class="button ghost" id="redoButton" type="button" disabled>重做</button>
           <button class="button ghost" id="saveButton" type="button">保存到本机</button>
           <button class="button ghost" id="loadButton" type="button">读取本机</button>
+          <button class="button ghost compact" id="feedbackSettingsButton" type="button" aria-haspopup="dialog">反馈</button>
           <button class="button ghost theme-toggle" id="themeToggleButton" type="button" aria-label="切换黑白模式" aria-pressed="false"><span aria-hidden="true">☼</span><span class="theme-toggle-label">白色模式</span></button>
           <button class="button primary" id="exportPngButton" type="button">导出 PNG</button>
         </div>
@@ -360,7 +361,21 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+    <dialog class="feedback-dialog" id="feedbackDialog" aria-labelledby="feedbackDialogTitle">
+      <form method="dialog">
+        <header class="feedback-dialog-header">
+          <div><span>INTERACTION</span><h2 id="feedbackDialogTitle">反馈设置</h2></div>
+          <button class="icon-button" id="feedbackDialogClose" value="close" aria-label="关闭反馈设置" type="submit">×</button>
+        </header>
+        <label class="feedback-option"><span><b>声音反馈</b><small>导出、保存、错误与吸附使用短促提示音</small></span><input id="soundEnabledInput" type="checkbox" /></label>
+        <label class="feedback-option"><span><b>触觉反馈</b><small>设备支持时用于选择、吸附和结果确认</small></span><input id="hapticsEnabledInput" type="checkbox" /></label>
+        <label class="field-block"><span>动效偏好</span><select id="motionModeSelect"><option value="system">跟随系统</option><option value="full">完整反馈</option><option value="reduce">减少动态</option></select></label>
+        <p class="field-note">声音默认关闭；关闭动效后，状态、颜色和文字提示仍保留。</p>
+      </form>
+    </dialog>
+
     <script src="./studio-core.js" defer></script>
+    <script src="./interaction-feedback.js" defer></script>
     <script src="./app.js" defer></script>
   </body>
 </html>

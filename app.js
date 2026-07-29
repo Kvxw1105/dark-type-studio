@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.12.0";
+const APP_VERSION = "1.13.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
@@ -307,6 +307,11 @@ const elements = {
   undoButton: document.querySelector("#undoButton"),
   redoButton: document.querySelector("#redoButton"),
   zoomLabel: document.querySelector("#zoomLabel"),
+  feedbackSettingsButton: document.querySelector("#feedbackSettingsButton"),
+  feedbackDialog: document.querySelector("#feedbackDialog"),
+  soundEnabledInput: document.querySelector("#soundEnabledInput"),
+  hapticsEnabledInput: document.querySelector("#hapticsEnabledInput"),
+  motionModeSelect: document.querySelector("#motionModeSelect"),
 };
 
 const context = elements.canvas.getContext("2d", { alpha: false });
@@ -387,10 +392,12 @@ function cloneTemplate(templateId) {
 }
 
 function bindEvents() {
+  bindFeedbackSettings();
   elements.templateGrid.addEventListener("click", (event) => {
     const card = event.target.closest("[data-template-id]");
     if (!card) return;
     switchTemplate(card.dataset.templateId);
+    emitFeedback("select");
   });
 
   elements.backgroundColor.addEventListener("input", () => {
@@ -422,9 +429,9 @@ function bindEvents() {
   document.querySelector("#importProjectInput").addEventListener("change", importProject);
   document.querySelector("#resetTemplateButton").addEventListener("click", resetCurrentTemplate);
 
-  document.querySelector("#exportPngButton").addEventListener("click", () => exportImage("image/png", "png"));
-  document.querySelector("#exportJpgButton").addEventListener("click", () => exportImage("image/jpeg", "jpg"));
-  document.querySelector("#exportWebpButton").addEventListener("click", () => exportImage("image/webp", "webp"));
+  document.querySelector("#exportPngButton").addEventListener("click", (event) => exportImage("image/png", "png", event.currentTarget));
+  document.querySelector("#exportJpgButton").addEventListener("click", (event) => exportImage("image/jpeg", "jpg", event.currentTarget));
+  document.querySelector("#exportWebpButton").addEventListener("click", (event) => exportImage("image/webp", "webp", event.currentTarget));
 
   document.querySelector("#fitButton").addEventListener("click", () => {
     zoomMode = "fit";
@@ -460,6 +467,35 @@ function bindEvents() {
     const [width, height] = elements.canvasPreset.value.split("x").map(Number);
     applyCanvasSize(width, height);
   });
+}
+
+function emitFeedback(type) {
+  window.DarkTypeFeedback?.emit(type);
+}
+
+function bindFeedbackSettings() {
+  const settings = window.DarkTypeFeedback?.getSettings?.();
+  if (settings) {
+    elements.soundEnabledInput.checked = settings.soundEnabled;
+    elements.hapticsEnabledInput.checked = settings.hapticsEnabled;
+    elements.motionModeSelect.value = settings.motionMode;
+  }
+  elements.feedbackSettingsButton.addEventListener("click", () => {
+    if (elements.feedbackDialog.showModal) elements.feedbackDialog.showModal();
+    else elements.feedbackDialog.setAttribute("open", "");
+    emitFeedback("open");
+  });
+  const update = () => {
+    window.DarkTypeFeedback?.setSettings({
+      soundEnabled: elements.soundEnabledInput.checked,
+      hapticsEnabled: elements.hapticsEnabledInput.checked,
+      motionMode: elements.motionModeSelect.value,
+    });
+    emitFeedback("select");
+  };
+  elements.soundEnabledInput.addEventListener("change", update);
+  elements.hapticsEnabledInput.addEventListener("change", update);
+  elements.motionModeSelect.addEventListener("change", update);
 }
 
 function applyTheme(theme) {
@@ -1340,6 +1376,7 @@ function handleLayerListClick(event) {
   }
 
   selectedLayerId = layer.id;
+  emitFeedback("select");
   renderAll();
 }
 
@@ -1573,6 +1610,7 @@ function handlePointerDown(event) {
     };
     elements.canvas.setPointerCapture?.(event.pointerId);
     elements.canvas.classList.add("resizing");
+    emitFeedback("drag_start");
     return;
   }
   const target = [...hitBoxes].reverse().find((box) => pointInBox(point, box));
@@ -1606,6 +1644,7 @@ function handlePointerDown(event) {
   };
   elements.canvas.setPointerCapture?.(event.pointerId);
   elements.canvas.classList.add("dragging");
+  emitFeedback("drag_start");
   renderAll();
 }
 
@@ -1636,7 +1675,7 @@ function handlePointerMove(event) {
   if (snapX) nextX = state.width / 2 - dragState.centerOffsetX;
   if (snapY) nextY = state.height / 2 - dragState.centerOffsetY;
   if ((snapX && !dragState.snappedX) || (snapY && !dragState.snappedY)) {
-    navigator.vibrate?.(8);
+    emitFeedback("drag_snap");
   }
   dragState.snappedX = snapX;
   dragState.snappedY = snapY;
@@ -1655,6 +1694,7 @@ function handlePointerUp(event) {
     elements.canvas.releasePointerCapture?.(event.pointerId);
     elements.canvas.classList.remove("resizing");
     if (resizeState.moved) commitHistory();
+    if (resizeState.moved) emitFeedback("success");
     resizeState = null;
     delete elements.canvas.dataset.resizeHandle;
     renderAll();
@@ -1664,6 +1704,7 @@ function handlePointerUp(event) {
   elements.canvas.releasePointerCapture?.(event.pointerId);
   elements.canvas.classList.remove("dragging");
   if (dragState.moved) commitHistory();
+  if (dragState.moved) emitFeedback("success");
   dragState = null;
   alignmentGuides = { vertical: false, horizontal: false };
   delete elements.canvas.dataset.guideX;
@@ -1903,7 +1944,28 @@ function applyZoom(zoom, mode) {
   elements.zoomLabel.value = mode === "fit" ? "适应" : `${Math.round(zoom * 100)}%`;
 }
 
-async function exportImage(mimeType, extension) {
+function setButtonProcessing(button, processing, label = "处理中") {
+  if (!button) return;
+  if (processing) {
+    button.dataset.idleLabel = button.textContent;
+    button.disabled = true;
+    button.classList.add("is-processing");
+    button.setAttribute("aria-busy", "true");
+    button.textContent = label;
+  } else {
+    button.disabled = false;
+    button.classList.remove("is-processing");
+    button.removeAttribute("aria-busy");
+    button.textContent = button.dataset.idleLabel || button.textContent;
+    delete button.dataset.idleLabel;
+  }
+}
+
+async function exportImage(mimeType, extension, button) {
+  if (button?.disabled) return;
+  setButtonProcessing(button, true, `导出 ${extension.toUpperCase()}…`);
+  elements.statusMessage.textContent = "正在生成导出文件";
+  emitFeedback("processing");
   const scale = Number(elements.exportScale.value);
   const exportCanvas = document.createElement("canvas");
   exportCanvas.width = state.width * scale;
@@ -1912,19 +1974,20 @@ async function exportImage(mimeType, extension) {
   drawCanvas(exportContext, scale, false);
 
   const quality = mimeType === "image/jpeg" ? 0.95 : 0.96;
-  exportCanvas.toBlob(
-    (blob) => {
-      if (!blob) {
-        showToast("导出失败，请稍后重试。", true);
-        return;
-      }
+  try {
+    const blob = await new Promise((resolve) => exportCanvas.toBlob(resolve, mimeType, quality));
+    if (!blob) throw new Error("Canvas export returned an empty blob");
       downloadBlob(blob, `${safeFilename(state.name)}-${formatTimestamp()}.${extension}`);
       showToast(`已导出 ${state.width * scale} × ${state.height * scale} ${extension.toUpperCase()}。`, false);
       drawCanvas();
-    },
-    mimeType,
-    quality,
-  );
+      elements.statusMessage.textContent = "导出完成";
+  } catch (error) {
+    console.warn("Unable to export image", error);
+    showToast("导出失败，请稍后重试。", true);
+    elements.statusMessage.textContent = "导出失败，可重试";
+  } finally {
+    setButtonProcessing(button, false);
+  }
 }
 
 function saveToLocalStorage() {
@@ -2145,6 +2208,7 @@ function showToast(message, isError = false, action = null) {
   }
   elements.toast.style.borderColor = isError ? "rgba(233, 25, 32, 0.65)" : "#353b45";
   elements.toast.classList.add("show");
+  emitFeedback(isError ? "error" : action ? "warning" : "success");
   toastTimer = setTimeout(() => elements.toast.classList.remove("show"), 2600);
 }
 

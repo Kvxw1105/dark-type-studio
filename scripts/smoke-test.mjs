@@ -8,6 +8,7 @@ const landingHtml = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 const landingCss = fs.readFileSync(path.join(root, "landing.css"), "utf8");
 const landingJs = fs.readFileSync(path.join(root, "landing.js"), "utf8");
+const feedback = fs.readFileSync(path.join(root, "interaction-feedback.js"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
 const core = fs.readFileSync(path.join(root, "studio-core.js"), "utf8");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
@@ -37,13 +38,13 @@ assert(js.includes('exportImage("image/jpeg"'), "缺少 JPG 导出");
 assert(js.includes('exportImage("image/webp"'), "缺少 WebP 导出");
 assert(js.includes("new FontFace"), "缺少本地字体加载能力");
 assert(css.includes(".workspace"), "缺少工作区布局样式");
-assert(pkg.version === "1.12.0", "package.json 版本应为 1.12.0");
-assert(js.includes('APP_VERSION = "1.12.0"'), "app.js 版本与 package.json 不一致");
+assert(pkg.version === "1.13.0", "package.json 版本应为 1.13.0");
+assert(js.includes('APP_VERSION = "1.13.0"'), "app.js 版本与 package.json 不一致");
 assert(html.includes('id="layerRotation"'), "缺少图层旋转控件");
 assert(html.includes('data-mobile-view="canvas"'), "缺少移动端工作区切换");
 assert(html.includes('id="canvasPreset"'), "缺少社媒画布尺寸预设");
 assert(js.includes("drawAlignmentGuides"), "缺少中心对齐参考线");
-assert(js.includes("navigator.vibrate"), "缺少吸附触觉反馈");
+assert(js.includes('emitFeedback("drag_snap")') && feedback.includes("navigator.vibrate"), "缺少吸附触觉反馈");
 assert(js.includes("clearRichTextSelection"), "缺少整层文字编辑模式切换");
 assert(js.includes("selectionCorners"), "缺少画布缩放角点");
 assert(js.includes("updateResize"), "缺少画布缩放处理");
@@ -58,6 +59,10 @@ assert(html.includes('id="richTextStatus"'), "缺少局部文字样式提示");
 assert(js.includes("textRuns"), "缺少局部文字样式数据");
 assert(js.includes("wrapStyledText"), "缺少局部文字渲染");
 assert(html.includes('id="themeToggleButton"'), "缺少黑白模式切换按钮");
+assert(html.includes('id="feedbackSettingsButton"'), "缺少反馈设置入口");
+assert(html.includes('src="./interaction-feedback.js"'), "网页未加载反馈控制器");
+assert(feedback.includes("DarkTypeFeedback"), "缺少语义反馈控制器");
+assert(feedback.includes("soundEnabled") && feedback.includes("hapticsEnabled"), "缺少多感官反馈设置");
 assert(js.includes("applyTheme"), "缺少主题切换逻辑");
 assert(js.includes("beforeunload"), "缺少未保存离开保护");
 assert(js.includes("toast-action"), "缺少删除后的撤销反馈");
@@ -77,6 +82,7 @@ if (fs.existsSync(workflowPath)) {
     assert(workflow.includes(required), `Pages 工作流缺少 ${required}`);
   }
   assert(workflow.includes("studio-core.js"), "Pages 工作流未发布共享项目内核");
+  assert(workflow.includes("interaction-feedback.js"), "Pages 工作流未发布反馈控制器");
 }
 
 if (failures.length) {
