@@ -661,6 +661,9 @@ input[type="range"] {
 #designCanvas[data-resize-handle="ne"],
 #designCanvas[data-resize-handle="sw"] { cursor: nesw-resize; }
 
+#designCanvas[data-resize-handle="n"],
+#designCanvas[data-resize-handle="s"] { cursor: ew-resize; }
+
 #designCanvas.resizing { cursor: nwse-resize; }
 
 .rich-text-status-row {

@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.9.0";
+const APP_VERSION = "1.10.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
@@ -955,7 +955,9 @@ function finalizeStyledLine(line) {
 
 function getStyledTokens(layer) {
   const tokens = [];
-  const text = String(layer.text ?? "");
+  const text = layer.horizontalFit
+    ? String(layer.text ?? "").replace(/\r?\n/g, "")
+    : String(layer.text ?? "");
   let index = 0;
   for (const char of text) {
     tokens.push({ char, style: getTextStyleAt(layer, index) });
@@ -983,6 +985,35 @@ function measureStyledToken(ctx, token) {
   const width = ctx.measureText(token.char).width;
   ctx.restore();
   return width;
+}
+
+function measureUnwrappedTextWidth(ctx, layer) {
+  return getStyledTokens(layer).reduce((total, token, index) => {
+    return total + measureStyledToken(ctx, token) + (index ? layer.letterSpacing : 0);
+  }, 0);
+}
+
+function horizontalWidthLimit(layer) {
+  const inset = Math.max(24, Math.min(state.width, state.height) * 0.04);
+  if (layer.align === "left") return Math.max(20, state.width - layer.x - inset);
+  if (layer.align === "right") return Math.max(20, layer.x - inset);
+  return Math.max(20, 2 * Math.min(layer.x - inset / 2, state.width - layer.x - inset / 2));
+}
+
+function fitHorizontalText(layer, sourceLayer, maxWidth) {
+  const candidate = structuredClone(sourceLayer);
+  candidate.horizontalFit = true;
+  candidate.maxWidth = maxWidth;
+  const naturalWidth = Math.max(1, measureUnwrappedTextWidth(context, candidate));
+  const availableWidth = Math.max(20, maxWidth - 24);
+  const scale = Math.min(1, availableWidth / naturalWidth);
+  layer.fontSize = clamp((sourceLayer.fontSize ?? 48) * scale, 8, 1200);
+  layer.textRuns = (sourceLayer.textRuns ?? []).map((run) => ({
+    ...run,
+    style: run.style?.fontSize
+      ? { ...run.style, fontSize: clamp(run.style.fontSize * scale, 8, 1200) }
+      : run.style,
+  }));
 }
 
 function drawStyledLine(ctx, layer, line, y) {
@@ -1112,6 +1143,22 @@ function drawSelection(ctx, box) {
     ctx.strokeStyle = "#28a9ff";
     ctx.strokeRect(x - size / 2, y - size / 2, size, size);
   }
+
+  const selectedLayer = state.layers.find((layer) => layer.id === selectedLayerId);
+  if (selectedLayer?.type === "text" || selectedLayer?.type === "line") {
+    const edgeWidth = 32;
+    const edgeHeight = 8;
+    const edgeHandles = [
+      [box.x + box.width / 2, box.y],
+      [box.x + box.width / 2, box.y + box.height],
+    ];
+    for (const [x, y] of edgeHandles) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x - edgeWidth / 2, y - edgeHeight / 2, edgeWidth, edgeHeight);
+      ctx.strokeStyle = "#28a9ff";
+      ctx.strokeRect(x - edgeWidth / 2, y - edgeHeight / 2, edgeWidth, edgeHeight);
+    }
+  }
   ctx.restore();
 }
 
@@ -1121,6 +1168,8 @@ function selectionCorners(box) {
     { id: "ne", x: box.x + box.width, y: box.y },
     { id: "sw", x: box.x, y: box.y + box.height },
     { id: "se", x: box.x + box.width, y: box.y + box.height },
+    { id: "n", x: box.x + box.width / 2, y: box.y },
+    { id: "s", x: box.x + box.width / 2, y: box.y + box.height },
   ];
 }
 
@@ -1274,6 +1323,7 @@ function handleEditorInput(event) {
     layerText: () => {
       layer.text = value;
       layer.textRuns = [];
+      layer.horizontalFit = false;
       richTextSelection = null;
     },
     fontFamily: () => (layer.fontFamily = value),
@@ -1569,6 +1619,30 @@ function handlePointerUp(event) {
 function updateResize(event) {
   const point = pointerToCanvas(event);
   const { startBox, startLayer, handle } = resizeState;
+  const layer = getSelectedLayer();
+  if (!layer) return;
+
+  if (handle === "n" || handle === "s") {
+    const horizontalDelta = point.x - resizeState.startPoint.x;
+    const widthMultiplier = handle === "n" || handle === "s" ? 2 : 1;
+    const startWidth = Math.max(24, startBox.width);
+    if (layer.type === "text") {
+      layer.horizontalFit = true;
+      const startMaxWidth = Math.max(20, startLayer.maxWidth ?? startWidth - 24);
+      const widthLimit = horizontalWidthLimit(layer);
+      layer.maxWidth = clamp(startMaxWidth + horizontalDelta * widthMultiplier, 20, widthLimit);
+      fitHorizontalText(layer, startLayer, layer.maxWidth);
+    } else if (layer.type === "line") {
+      layer.width = clamp((startLayer.width ?? startWidth) + horizontalDelta * widthMultiplier, 1, 4000);
+    } else {
+      return;
+    }
+    resizeState.moved = resizeState.moved || Math.abs(horizontalDelta) > 0.5;
+    touchState();
+    drawCanvas();
+    return;
+  }
+
   const anchors = {
     nw: { x: startBox.x + startBox.width, y: startBox.y + startBox.height },
     ne: { x: startBox.x, y: startBox.y + startBox.height },
@@ -1587,8 +1661,6 @@ function updateResize(event) {
     width: nextWidth,
     height: nextHeight,
   };
-  const layer = getSelectedLayer();
-  if (!layer) return;
   const offsetX = startLayer.x - startBox.x;
   const offsetY = startLayer.y - startBox.y;
   layer.x = nextBox.x + offsetX * ratio;
