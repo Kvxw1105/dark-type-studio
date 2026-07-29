@@ -1,6 +1,6 @@
 "use strict";
 
-const APP_VERSION = "1.11.0";
+const APP_VERSION = "1.12.0";
 const STORAGE_KEY = "dark-type-studio:last-project";
 const CUSTOM_TEMPLATES_KEY = "dark-type-studio:custom-templates";
 const THEME_KEY = "dark-type-studio:theme";
@@ -955,9 +955,7 @@ function finalizeStyledLine(line) {
 
 function getStyledTokens(layer) {
   const tokens = [];
-  const text = layer.horizontalFit
-    ? String(layer.text ?? "").replace(/\r?\n/g, "")
-    : String(layer.text ?? "");
+  const text = String(layer.text ?? "");
   let index = 0;
   for (const char of text) {
     tokens.push({ char, style: getTextStyleAt(layer, index) });
@@ -1000,20 +998,56 @@ function horizontalWidthLimit(layer) {
   return Math.max(20, 2 * Math.min(layer.x - inset / 2, state.width - layer.x - inset / 2));
 }
 
-function fitHorizontalText(layer, sourceLayer, maxWidth) {
-  const candidate = structuredClone(sourceLayer);
-  candidate.horizontalFit = true;
-  candidate.maxWidth = maxWidth;
-  const naturalWidth = Math.max(1, measureUnwrappedTextWidth(context, candidate));
-  const availableWidth = Math.max(20, maxWidth - 24);
-  const scale = Math.min(1, availableWidth / naturalWidth);
-  layer.fontSize = clamp((sourceLayer.fontSize ?? 48) * scale, 8, 1200);
-  layer.textRuns = (sourceLayer.textRuns ?? []).map((run) => ({
+function scaleTextRuns(runs, scale) {
+  return (runs ?? []).map((run) => ({
     ...run,
     style: run.style?.fontSize
       ? { ...run.style, fontSize: clamp(run.style.fontSize * scale, 8, 1200) }
       : run.style,
   }));
+}
+
+function prepareAdaptiveTextResize(layer) {
+  if (!layer.autoFitSource) {
+    layer.autoFitSource = String(layer.text ?? "").replace(/\r?\n/g, "");
+    layer.autoFitBaseFontSize = layer.fontSize;
+    layer.autoFitBaseRuns = structuredClone(layer.textRuns ?? []);
+  }
+  return {
+    source: layer.autoFitSource,
+    fontSize: layer.autoFitBaseFontSize ?? layer.fontSize,
+    textRuns: structuredClone(layer.autoFitBaseRuns ?? layer.textRuns ?? []),
+  };
+}
+
+function applyAdaptiveTextWidth(layer, adaptive, maxWidth) {
+  const candidate = structuredClone(layer);
+  candidate.text = adaptive.source;
+  candidate.fontSize = adaptive.fontSize;
+  candidate.textRuns = adaptive.textRuns;
+  candidate.maxWidth = maxWidth;
+  const naturalWidth = Math.max(1, measureUnwrappedTextWidth(context, candidate));
+  const availableWidth = Math.max(20, maxWidth - 24);
+  const oneLineScale = availableWidth / naturalWidth;
+  const keepOneLine = layer.autoFitMode === "single"
+    ? oneLineScale >= 0.74
+    : oneLineScale >= 0.78;
+  const scale = keepOneLine ? Math.min(1, oneLineScale) : 1;
+
+  layer.fontSize = clamp(adaptive.fontSize * scale, 8, 1200);
+  layer.textRuns = scaleTextRuns(adaptive.textRuns, scale);
+  if (keepOneLine) {
+    layer.text = adaptive.source;
+  } else {
+    const wrapped = wrapStyledText(context, candidate);
+    layer.text = wrapped.map((line) => line.tokens.map((token) => token.char).join("")).join("\n");
+  }
+  layer.autoFitSource = adaptive.source;
+  layer.autoFitMode = keepOneLine ? "single" : "wrapped";
+  layer.autoFitBaseFontSize = adaptive.fontSize;
+  layer.autoFitBaseRuns = structuredClone(adaptive.textRuns);
+  if (elements.layerText === document.activeElement) return;
+  elements.layerText.value = layer.text;
 }
 
 function drawStyledLine(ctx, layer, line, y) {
@@ -1337,7 +1371,10 @@ function handleEditorInput(event) {
     layerText: () => {
       layer.text = value;
       layer.textRuns = [];
-      layer.horizontalFit = false;
+      delete layer.autoFitSource;
+      delete layer.autoFitMode;
+      delete layer.autoFitBaseFontSize;
+      delete layer.autoFitBaseRuns;
       richTextSelection = null;
     },
     fontFamily: () => (layer.fontFamily = value),
@@ -1522,12 +1559,16 @@ function handlePointerDown(event) {
   const resizeHandle = getResizeHandleAtPoint(point);
   if (selectedLayer && resizeHandle && !selectedLayer.locked) {
     const box = hitBoxes.find((entry) => entry.layerId === selectedLayer.id);
+    const adaptiveText = selectedLayer.type === "text" && ["w", "e"].includes(resizeHandle)
+      ? prepareAdaptiveTextResize(selectedLayer)
+      : null;
     resizeState = {
       pointerId: event.pointerId,
       handle: resizeHandle,
       startPoint: point,
       startBox: { x: box.x, y: box.y, width: box.width, height: box.height },
       startLayer: structuredClone(selectedLayer),
+      adaptiveText,
       moved: false,
     };
     elements.canvas.setPointerCapture?.(event.pointerId);
@@ -1636,22 +1677,41 @@ function updateResize(event) {
   const layer = getSelectedLayer();
   if (!layer) return;
 
-  if (["n", "s", "w", "e"].includes(handle)) {
+  if (["w", "e"].includes(handle)) {
     const horizontalDelta = point.x - resizeState.startPoint.x;
-    const widthMultiplier = handle === "n" || handle === "s" ? 2 : handle === "w" ? -1 : 1;
+    const widthMultiplier = handle === "w" ? -1 : 1;
     const startWidth = Math.max(24, startBox.width);
     if (layer.type === "text") {
-      layer.horizontalFit = true;
       const startMaxWidth = Math.max(20, startLayer.maxWidth ?? startWidth - 24);
       const widthLimit = horizontalWidthLimit(layer);
       layer.maxWidth = clamp(startMaxWidth + horizontalDelta * widthMultiplier, 20, widthLimit);
-      fitHorizontalText(layer, startLayer, layer.maxWidth);
+      applyAdaptiveTextWidth(layer, resizeState.adaptiveText, layer.maxWidth);
     } else if (layer.type === "line") {
       layer.width = clamp((startLayer.width ?? startWidth) + horizontalDelta * widthMultiplier, 1, 4000);
     } else {
       return;
     }
     resizeState.moved = resizeState.moved || Math.abs(horizontalDelta) > 0.5;
+    touchState();
+    drawCanvas();
+    return;
+  }
+
+  if (["n", "s"].includes(handle)) {
+    const verticalDelta = handle === "n"
+      ? resizeState.startPoint.y - point.y
+      : point.y - resizeState.startPoint.y;
+    const ratio = clamp((startBox.height + verticalDelta * 2) / Math.max(24, startBox.height), 0.1, 12);
+    if (layer.type === "text") {
+      layer.fontSize = clamp((startLayer.fontSize ?? 48) * ratio, 8, 1200);
+      layer.textRuns = scaleTextRuns(startLayer.textRuns, ratio);
+    } else if (layer.type === "seal") {
+      layer.size = clamp((startLayer.size ?? 68) * ratio, 20, 600);
+      layer.fontSize = clamp((startLayer.fontSize ?? 42) * ratio, 8, 400);
+    } else if (layer.type === "line") {
+      layer.thickness = clamp((startLayer.thickness ?? 4) * ratio, 1, 100);
+    }
+    resizeState.moved = resizeState.moved || Math.abs(verticalDelta) > 0.5;
     touchState();
     drawCanvas();
     return;
